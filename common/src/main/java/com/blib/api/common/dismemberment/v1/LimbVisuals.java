@@ -23,6 +23,7 @@ import java.util.Set;
 public record LimbVisuals(
     String rootBoneName,
     List<String> companionBoneNames,
+    List<String> excludedBoneNames,
     Vec3 renderOffset,
     Vec3 renderRotation,
     Vec3 renderScale,
@@ -42,7 +43,7 @@ public record LimbVisuals(
         Vec3 renderRotation,
         Vec3 renderScale
     ) {
-        this(rootBoneName, companionBoneNames, renderOffset, renderRotation, renderScale, DEFAULT_PIVOT, false);
+        this(rootBoneName, companionBoneNames, List.of(), renderOffset, renderRotation, renderScale, DEFAULT_PIVOT, false);
     }
 
     public LimbVisuals(
@@ -54,12 +55,26 @@ public record LimbVisuals(
         Vec3 renderPivot,
         boolean modelerTransform
     ) {
-        this(rootBoneName, companionBoneNames, renderOffset, renderRotation, renderScale, renderPivot, modelerTransform, List.of());
+        this(rootBoneName, companionBoneNames, List.of(), renderOffset, renderRotation, renderScale, renderPivot, modelerTransform, List.of());
+    }
+
+    public LimbVisuals(
+        String rootBoneName,
+        List<String> companionBoneNames,
+        List<String> excludedBoneNames,
+        Vec3 renderOffset,
+        Vec3 renderRotation,
+        Vec3 renderScale,
+        Vec3 renderPivot,
+        boolean modelerTransform
+    ) {
+        this(rootBoneName, companionBoneNames, excludedBoneNames, renderOffset, renderRotation, renderScale, renderPivot, modelerTransform, List.of());
     }
 
     public LimbVisuals {
         Objects.requireNonNull(rootBoneName, "LimbVisuals rootBoneName must not be null");
         Objects.requireNonNull(companionBoneNames, "LimbVisuals companionBoneNames must not be null");
+        Objects.requireNonNull(excludedBoneNames, "LimbVisuals excludedBoneNames must not be null");
         Objects.requireNonNull(renderOffset, "LimbVisuals renderOffset must not be null");
         Objects.requireNonNull(renderRotation, "LimbVisuals renderRotation must not be null");
         Objects.requireNonNull(renderScale, "LimbVisuals renderScale must not be null");
@@ -71,6 +86,7 @@ public record LimbVisuals(
         }
 
         companionBoneNames = List.copyOf(companionBoneNames);
+        excludedBoneNames = List.copyOf(excludedBoneNames);
         poses = List.copyOf(poses);
 
         Set<String> poseIds = new HashSet<>();
@@ -122,6 +138,7 @@ public record LimbVisuals(
         instance -> instance.group(
             Codec.STRING.fieldOf("root_bone").forGetter(LimbVisuals::rootBoneName),
             Codec.STRING.listOf().optionalFieldOf("companion_bones", List.of()).forGetter(LimbVisuals::companionBoneNames),
+            Codec.STRING.listOf().optionalFieldOf("excluded_bones", List.of()).forGetter(LimbVisuals::excludedBoneNames),
             Vec3.CODEC.optionalFieldOf("render_offset", Vec3.ZERO).forGetter(LimbVisuals::renderOffset),
             Vec3.CODEC.optionalFieldOf("render_rotation", Vec3.ZERO).forGetter(LimbVisuals::renderRotation),
             Vec3.CODEC.optionalFieldOf("render_scale", DEFAULT_SCALE).forGetter(LimbVisuals::renderScale),
@@ -132,9 +149,19 @@ public record LimbVisuals(
         )
             .apply(
                 instance,
-                (rootBoneName, companionBoneNames, renderOffset, renderRotation, renderScale, renderPivot, poses) -> new LimbVisuals(
+                (
                     rootBoneName,
                     companionBoneNames,
+                    excludedBoneNames,
+                    renderOffset,
+                    renderRotation,
+                    renderScale,
+                    renderPivot,
+                    poses
+                ) -> new LimbVisuals(
+                    rootBoneName,
+                    companionBoneNames,
+                    excludedBoneNames,
                     renderOffset,
                     renderRotation,
                     renderScale,

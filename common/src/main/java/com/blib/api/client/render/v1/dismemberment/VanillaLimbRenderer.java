@@ -62,7 +62,8 @@ public final class VanillaLimbRenderer {
             return;
         }
 
-        var skipSet = computeSkipSet(limb);
+        var skipSet = new HashSet<>(computeSkipSet(limb));
+        skipSet.addAll(visuals.excludedBoneNames());
 
         poseStack.pushPose();
         LimbRenderTransforms.applySourceTransform(poseStack, limb);
@@ -99,6 +100,10 @@ public final class VanillaLimbRenderer {
         // with this limb. Render each at the same pose stack as the root so they sit in the same fragment frame.
         if (!visuals.companionBoneNames().isEmpty()) {
             for (var companionBoneName : visuals.companionBoneNames()) {
+                if (visuals.excludedBoneNames().contains(companionBoneName)) {
+                    continue;
+                }
+
                 var companionPart = resolveModelPart(ghost, companionBoneName);
 
                 if (companionPart != null) {

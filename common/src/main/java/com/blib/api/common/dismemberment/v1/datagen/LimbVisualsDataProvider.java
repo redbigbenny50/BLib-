@@ -149,6 +149,8 @@ public abstract class LimbVisualsDataProvider implements DataProvider {
 
         private List<String> companionBoneNames = List.of();
 
+        private List<String> excludedBoneNames = List.of();
+
         private Vec3 renderOffset = Vec3.ZERO;
 
         private Vec3 renderRotation = Vec3.ZERO;
@@ -167,6 +169,11 @@ public abstract class LimbVisualsDataProvider implements DataProvider {
 
         public VisualBuilder companions(String... companionBoneNames) {
             this.companionBoneNames = List.of(companionBoneNames);
+            return this;
+        }
+
+        public VisualBuilder excludedBones(String... excludedBoneNames) {
+            this.excludedBoneNames = List.of(excludedBoneNames);
             return this;
         }
 
@@ -222,6 +229,7 @@ public abstract class LimbVisualsDataProvider implements DataProvider {
             return new LimbVisuals(
                 rootBoneName,
                 companionBoneNames,
+                excludedBoneNames,
                 renderOffset,
                 renderRotation,
                 renderScale,

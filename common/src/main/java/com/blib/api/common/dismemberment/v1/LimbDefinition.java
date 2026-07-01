@@ -189,6 +189,8 @@ public record LimbDefinition(
 
         private List<String> companionBoneNames = List.of();
 
+        private List<String> excludedBoneNames = List.of();
+
         private Vec3 renderOffset = Vec3.ZERO;
 
         private Vec3 renderRotation = Vec3.ZERO;
@@ -288,6 +290,12 @@ public record LimbDefinition(
             return this;
         }
 
+        public Builder excludedBones(String... excludedBoneNames) {
+            Objects.requireNonNull(excludedBoneNames, "excludedBoneNames");
+            this.excludedBoneNames = List.of(excludedBoneNames);
+            return this;
+        }
+
         public Builder fatal() {
             this.fatal = true;
             return this;
@@ -309,6 +317,7 @@ public record LimbDefinition(
             var visuals = new LimbVisuals(
                 rootBoneName,
                 companionBoneNames,
+                excludedBoneNames,
                 renderOffset,
                 renderRotation,
                 renderScale,

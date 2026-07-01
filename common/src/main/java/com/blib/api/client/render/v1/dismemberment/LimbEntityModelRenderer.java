@@ -3,8 +3,10 @@ package com.blib.api.client.render.v1.dismemberment;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 
+import java.util.Set;
 import java.util.UUID;
 
+import com.blib.api.client.model.v1.AzBone;
 import com.blib.api.client.render.v1.AzLayerRenderer;
 import com.blib.api.client.render.v1.AzRendererPipelineContext;
 import com.blib.api.client.render.v1.entity.AzEntityRenderer;
@@ -18,6 +20,8 @@ import com.blib.internal.mixin.MixinEntityRenderDispatcher_Accessor;
  * the detached piece.
  */
 public class LimbEntityModelRenderer extends AzEntityModelRenderer<DismemberedLimbEntity> {
+
+    private Set<String> excludedBoneNames = Set.of();
 
     public LimbEntityModelRenderer(
         AzEntityRendererPipeline<DismemberedLimbEntity> entityRendererPipeline,
@@ -139,23 +143,41 @@ public class LimbEntityModelRenderer extends AzEntityModelRenderer<DismemberedLi
 
         if (context.vertexConsumer() != null) {
             entityRendererPipeline.updateAnimatedTextureFrame(animatable);
-            renderRecursively(context, rootBone, isReRender);
+            excludedBoneNames = Set.copyOf(visuals.excludedBoneNames());
+            try {
+                renderRecursively(context, rootBone, isReRender);
 
-            // Companion bones live outside the root subtree but ride along with this limb (e.g. authored sibling
-            // bones the modeler kept independent of the head bone). Render each at the same pose stack as the root.
-            if (!visuals.companionBoneNames().isEmpty()) {
-                for (var companionBoneName : visuals.companionBoneNames()) {
-                    var companionBone = bakedModel.getBoneOrNull(companionBoneName);
+                // Companion bones live outside the root subtree but ride along with this limb (e.g. authored sibling
+                // bones the modeler kept independent of the head bone). Render each at the same pose stack as the root.
+                if (!visuals.companionBoneNames().isEmpty()) {
+                    for (var companionBoneName : visuals.companionBoneNames()) {
+                        if (excludedBoneNames.contains(companionBoneName)) {
+                            continue;
+                        }
 
-                    if (companionBone != null) {
-                        renderRecursively(context, companionBone, isReRender);
+                        var companionBone = bakedModel.getBoneOrNull(companionBoneName);
+
+                        if (companionBone != null) {
+                            renderRecursively(context, companionBone, isReRender);
+                        }
                     }
                 }
+            } finally {
+                excludedBoneNames = Set.of();
             }
 
             entityRendererPipeline.config().renderEntry(context);
         }
 
         poseStack.popPose();
+    }
+
+    @Override
+    public void renderRecursively(AzRendererPipelineContext<UUID, DismemberedLimbEntity> context, AzBone bone, boolean isReRender) {
+        if (excludedBoneNames.contains(bone.getName())) {
+            return;
+        }
+
+        super.renderRecursively(context, bone, isReRender);
     }
 }
