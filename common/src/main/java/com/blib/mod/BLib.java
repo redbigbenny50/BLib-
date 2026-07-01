@@ -41,6 +41,7 @@ import com.blib.internal.common.property.BLibPropertyContainerSaveHandler;
 import com.blib.internal.common.reputation.BLibReputationManager;
 import com.blib.internal.common.storage.BLibDataStoreManager;
 import com.blib.internal.common.territory.BLibPlayerClaimManager;
+import com.blib.internal.common.territory.BLibPlayerClaimContestNotifier;
 import com.blib.internal.common.territory.BLibTerritoryContestManager;
 import com.blib.internal.common.territory.BLibTerritoryManager;
 import com.blib.mod.common.gameplay.goap.GOAPDebugTracker;
@@ -110,6 +111,7 @@ public class BLib {
         // TODO: There's a small bug here. This runs for both client and server levels!
         BLib.MOD.events().postLevelTick().register(ServerScheduler::tick);
         BLib.MOD.events().postLevelTick().register(BLibTerritoryContestManager.INSTANCE::tick);
+        BLib.MOD.events().postLevelTick().register(BLibPlayerClaimContestNotifier.INSTANCE::tick);
         // TODO: There's a small bug here. This runs for both client and server levels!
         BLib.MOD.events().postLevelTick().register(BlockBreakProgressManager::tick);
 
@@ -134,6 +136,7 @@ public class BLib {
         BLib.MOD.events().onLevelSave().register(BLibDataStoreManager.INSTANCE::saveLevelData);
         BLib.MOD.events().onServerStopped().register(BLibTerritoryManager.INSTANCE::flushPendingClaimStoreSaves);
         BLib.MOD.events().onServerStopped().register(BLibDataStoreManager.INSTANCE::onServerStopped);
+        BLib.MOD.events().onServerStopped().register(BLibPlayerClaimContestNotifier.INSTANCE::clear);
         BLib.MOD.events().onServerStopped().register(GOAPDebugTracker.INSTANCE::clear);
         BLib.MOD.events().onServerStopped().register(server -> ClientTerritoryCache.INSTANCE.clear());
         BLib.MOD.events().onServerStopped().register(server -> ClientFactionCache.INSTANCE.clear());
@@ -165,6 +168,7 @@ public class BLib {
 
         BLib.MOD.events().onServerStarted().register(BLibTerritoryManager.INSTANCE::onServerStarted);
         BLib.MOD.events().onServerStarted().register(BLibPlayerClaimManager.INSTANCE::syncAllTerritory);
+        BLibTerritoryContestManager.INSTANCE.registerListener(BLibPlayerClaimContestNotifier.INSTANCE);
         BLib.MOD.events().onServerStopped().register(BLibTerritoryManager.INSTANCE::onServerStopped);
         BLib.MOD.events().onChunkLoad().register(BLibTerritoryManager.INSTANCE::onChunkLoaded);
         BLib.MOD.events().onChunkLoad().register(BLibEntityReferenceManager.INSTANCE::onChunkLoaded);

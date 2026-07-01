@@ -29,7 +29,7 @@ public class BLibChunkHighlighter extends ChunkHighlighter {
 
     private static final int BORDER_OPACITY = 200;
 
-    private static final int CONTESTED_COLOR = packColor(0xFFFF00);
+    private static final int CONTESTED_COLOR = packColor(0xFF0000);
 
     private static final Map<ResourceLocation, Optional<int[]>> OVERLAY_TEXTURE_CACHE = new HashMap<>();
 
@@ -147,8 +147,10 @@ public class BLibChunkHighlighter extends ChunkHighlighter {
         }
 
         if (factionIds.size() > 1) {
-            var fill = (CONTESTED_COLOR & 0xFFFFFF00) | FILL_OPACITY;
-            var edge = (CONTESTED_COLOR & 0xFFFFFF00) | BORDER_OPACITY;
+            var fillOpacity = contestedBlinkPhase() ? 180 : 35;
+            var edgeOpacity = contestedBlinkPhase() ? 255 : 90;
+            var fill = (CONTESTED_COLOR & 0xFFFFFF00) | fillOpacity;
+            var edge = (CONTESTED_COLOR & 0xFFFFFF00) | edgeOpacity;
 
             resultStore[0] = fill;
             resultStore[1] = edge;
@@ -191,6 +193,9 @@ public class BLibChunkHighlighter extends ChunkHighlighter {
                     hash = hash * 37L + colorFromFaction(factionId);
                     hash = hash * 37L + overlayTextureHashFromFaction(factionId);
                 }
+                if (factionIds.size() > 1) {
+                    hash = hash * 37L + (contestedBlinkPhase() ? 1 : 0);
+                }
 
                 hash = hash * 37L;
             }
@@ -207,11 +212,19 @@ public class BLibChunkHighlighter extends ChunkHighlighter {
             return Component.empty();
         }
 
+        var playerOwnerName = ClientTerritoryCache.INSTANCE.getPlayerOwnerName(dimension.location(), new ChunkPos(x, z));
+
         if (factionIds.size() > 1) {
-            return Component.literal("CONTESTED");
+            return playerOwnerName.isBlank()
+                ? Component.literal("CONTESTED")
+                : Component.literal("CONTESTED - Claim: " + playerOwnerName);
         }
 
-        return Component.literal(nameFromFaction(factionIds.getFirst()));
+        return Component.literal(
+            playerOwnerName.isBlank()
+                ? "Claim: " + nameFromFaction(factionIds.getFirst())
+                : "Claim: " + playerOwnerName
+        );
     }
 
     @Override
@@ -246,6 +259,13 @@ public class BLibChunkHighlighter extends ChunkHighlighter {
         }
 
         return factionId.toString();
+    }
+
+    public static boolean contestedBlinkPhase() {
+        var level = Minecraft.getInstance().level;
+        var gameTime = level == null ? 0L : level.getGameTime();
+
+        return (gameTime / 10L) % 2L == 0L;
     }
 
     private static int colorFromFaction(ResourceLocation factionId) {

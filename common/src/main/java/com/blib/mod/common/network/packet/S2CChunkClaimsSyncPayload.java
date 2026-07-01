@@ -25,8 +25,13 @@ public record S2CChunkClaimsSyncPayload(
     public record Entry(
         int chunkX,
         int chunkZ,
-        List<ResourceLocation> factionIds
+        List<ResourceLocation> factionIds,
+        String playerOwnerName
     ) {
+
+        public Entry(int chunkX, int chunkZ, List<ResourceLocation> factionIds) {
+            this(chunkX, chunkZ, factionIds, "");
+        }
 
         public static final StreamCodec<Entry> CODEC = RecordStreamCodec.of(
             StreamCodecs.INT,
@@ -35,6 +40,8 @@ public record S2CChunkClaimsSyncPayload(
             Entry::chunkZ,
             BLibCodecs.Stream.RESOURCE_LOCATION.asList(),
             Entry::factionIds,
+            StreamCodecs.STRING_UTF8,
+            Entry::playerOwnerName,
             Entry::new
         );
     }

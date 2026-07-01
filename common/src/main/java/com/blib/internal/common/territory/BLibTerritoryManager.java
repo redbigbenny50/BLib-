@@ -278,9 +278,11 @@ public class BLibTerritoryManager {
     public S2CChunkClaimsSyncPayload buildSyncPayload(ServerLevel level, ChunkPos pos) {
         var claimants = getClaimants(level, pos);
 
+        var claimantsList = new ArrayList<>(claimants);
+
         return S2CChunkClaimsSyncPayload.incremental(
             level.dimension().location(),
-            List.of(new S2CChunkClaimsSyncPayload.Entry(pos.x, pos.z, new ArrayList<>(claimants)))
+            List.of(new S2CChunkClaimsSyncPayload.Entry(pos.x, pos.z, claimantsList, playerOwnerName(level, pos, claimantsList)))
         );
     }
 
@@ -321,7 +323,7 @@ public class BLibTerritoryManager {
 
         return S2CChunkClaimsSyncPayload.incremental(
             level.dimension().location(),
-            List.of(new S2CChunkClaimsSyncPayload.Entry(pos.x, pos.z, visibleFactions))
+            List.of(new S2CChunkClaimsSyncPayload.Entry(pos.x, pos.z, visibleFactions, playerOwnerName(level, pos, visibleFactions)))
         );
     }
 
@@ -347,7 +349,7 @@ public class BLibTerritoryManager {
                 continue;
             }
 
-            entries.add(new S2CChunkClaimsSyncPayload.Entry(pos.x, pos.z, visibleFactions));
+            entries.add(new S2CChunkClaimsSyncPayload.Entry(pos.x, pos.z, visibleFactions, playerOwnerName(level, pos, visibleFactions)));
 
             if (entries.size() >= SYNC_BATCH_SIZE) {
                 BLib.MOD.networking()
@@ -384,7 +386,7 @@ public class BLibTerritoryManager {
                 .toList();
 
             if (!visibleFactions.isEmpty()) {
-                entries.add(new S2CChunkClaimsSyncPayload.Entry(pos.x, pos.z, visibleFactions));
+                entries.add(new S2CChunkClaimsSyncPayload.Entry(pos.x, pos.z, visibleFactions, playerOwnerName(level, pos, visibleFactions)));
             }
         }
 
@@ -405,6 +407,29 @@ public class BLibTerritoryManager {
             center.z + radiusChunks,
             player
         );
+    }
+
+    private static String playerOwnerName(ServerLevel level, ChunkPos pos, List<ResourceLocation> visibleFactions) {
+        var owner = BLibPlayerClaimManager.INSTANCE.ownerOf(level, pos);
+        if (owner == null) {
+            return "";
+        }
+
+        var playerClaimId = BLibPlayerClaimManager.playerClaimId(owner);
+        if (!visibleFactions.contains(playerClaimId)) {
+            return "";
+        }
+
+        var onlinePlayer = level.getServer().getPlayerList().getPlayer(owner);
+        if (onlinePlayer != null) {
+            return onlinePlayer.getGameProfile().getName();
+        }
+
+        return level.getServer()
+            .getProfileCache()
+            .get(owner)
+            .map(profile -> profile.getName())
+            .orElse(owner.toString());
     }
 
     public void flushPendingClaimStoreSaves(MinecraftServer server) {

@@ -20,22 +20,41 @@ public class ClientTerritoryCache {
 
     private final Map<ResourceLocation, Map<ChunkPos, List<ResourceLocation>>> factionsByDimension;
 
+    private final Map<ResourceLocation, Map<ChunkPos, String>> playerOwnerNamesByDimension;
+
     private ClientTerritoryCache() {
         this.factionsByDimension = new HashMap<>();
+        this.playerOwnerNamesByDimension = new HashMap<>();
     }
 
-    public void updateChunk(ResourceLocation dimension, int chunkX, int chunkZ, List<ResourceLocation> factionIds) {
+    public void updateChunk(
+        ResourceLocation dimension,
+        int chunkX,
+        int chunkZ,
+        List<ResourceLocation> factionIds,
+        String playerOwnerName
+    ) {
         var pos = new ChunkPos(chunkX, chunkZ);
         var factionsByChunk = factionsByDimension.computeIfAbsent(dimension, $ -> new HashMap<>());
+        var playerOwnerNamesByChunk = playerOwnerNamesByDimension.computeIfAbsent(dimension, $ -> new HashMap<>());
 
         if (factionIds.isEmpty()) {
             factionsByChunk.remove(pos);
+            playerOwnerNamesByChunk.remove(pos);
 
             if (factionsByChunk.isEmpty()) {
                 factionsByDimension.remove(dimension);
             }
+            if (playerOwnerNamesByChunk.isEmpty()) {
+                playerOwnerNamesByDimension.remove(dimension);
+            }
         } else {
             factionsByChunk.put(pos, List.copyOf(factionIds));
+            if (playerOwnerName == null || playerOwnerName.isBlank()) {
+                playerOwnerNamesByChunk.remove(pos);
+            } else {
+                playerOwnerNamesByChunk.put(pos, playerOwnerName);
+            }
         }
 
         if (XaeroWorldMapCompat.isLoaded()) {
@@ -45,7 +64,7 @@ public class ClientTerritoryCache {
 
     public void updateChunks(ResourceLocation dimension, List<S2CChunkClaimsSyncPayload.Entry> entries) {
         for (var entry : entries) {
-            updateChunk(dimension, entry.chunkX(), entry.chunkZ(), entry.factionIds());
+            updateChunk(dimension, entry.chunkX(), entry.chunkZ(), entry.factionIds(), entry.playerOwnerName());
         }
     }
 
@@ -58,7 +77,11 @@ public class ClientTerritoryCache {
         List<S2CChunkClaimsSyncPayload.Entry> entries
     ) {
         var factionsByChunk = factionsByDimension.computeIfAbsent(dimension, $ -> new HashMap<>());
+        var playerOwnerNamesByChunk = playerOwnerNamesByDimension.computeIfAbsent(dimension, $ -> new HashMap<>());
         factionsByChunk
+            .keySet()
+            .removeIf(pos -> pos.x >= minChunkX && pos.x <= maxChunkX && pos.z >= minChunkZ && pos.z <= maxChunkZ);
+        playerOwnerNamesByChunk
             .keySet()
             .removeIf(pos -> pos.x >= minChunkX && pos.x <= maxChunkX && pos.z >= minChunkZ && pos.z <= maxChunkZ);
 
@@ -67,13 +90,22 @@ public class ClientTerritoryCache {
 
             if (entry.factionIds().isEmpty()) {
                 factionsByChunk.remove(pos);
+                playerOwnerNamesByChunk.remove(pos);
             } else {
                 factionsByChunk.put(pos, List.copyOf(entry.factionIds()));
+                if (entry.playerOwnerName() == null || entry.playerOwnerName().isBlank()) {
+                    playerOwnerNamesByChunk.remove(pos);
+                } else {
+                    playerOwnerNamesByChunk.put(pos, entry.playerOwnerName());
+                }
             }
         }
 
         if (factionsByChunk.isEmpty()) {
             factionsByDimension.remove(dimension);
+        }
+        if (playerOwnerNamesByChunk.isEmpty()) {
+            playerOwnerNamesByDimension.remove(dimension);
         }
 
         if (XaeroWorldMapCompat.isLoaded()) {
@@ -92,6 +124,21 @@ public class ClientTerritoryCache {
     public boolean isContested(ResourceLocation dimension, ChunkPos pos) {
         var factions = chunksForDimension(dimension).get(pos);
         return factions != null && factions.size() > 1;
+    }
+
+    public String getPlayerOwnerName(ResourceLocation dimension, ChunkPos pos) {
+        return playerOwnerNamesByDimension.getOrDefault(dimension, Map.of()).getOrDefault(pos, "");
+    }
+
+    public boolean hasContestedClaims() {
+        for (var chunks : factionsByDimension.values()) {
+            for (var factionIds : chunks.values()) {
+                if (factionIds.size() > 1) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -115,6 +162,7 @@ public class ClientTerritoryCache {
 
     public void clear() {
         factionsByDimension.clear();
+        playerOwnerNamesByDimension.clear();
     }
 
     private Map<ChunkPos, List<ResourceLocation>> chunksForDimension(ResourceLocation dimension) {

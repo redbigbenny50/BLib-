@@ -122,7 +122,7 @@ public class BLibPlayerClaimManager {
         return factionId.getNamespace().equals(BLib.MOD.id()) && factionId.getPath().startsWith("player_claim/");
     }
 
-    private static @Nullable UUID getPlayerClaimOwner(ResourceLocation factionId) {
+    public static @Nullable UUID getPlayerClaimOwner(ResourceLocation factionId) {
         if (!isPlayerClaimId(factionId)) {
             return null;
         }
