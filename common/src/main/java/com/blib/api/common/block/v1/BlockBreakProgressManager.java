@@ -35,7 +35,7 @@ public class BlockBreakProgressManager {
         });
         //LOGGER.debug(
         //    "Finished cleaning block break progress map ({} entries)",
-            BlockBreakProgressManager.BLOCK_BREAK_PROGRESS_MAP.size()
+        //    BlockBreakProgressManager.BLOCK_BREAK_PROGRESS_MAP.size()
         //);
     }
 
