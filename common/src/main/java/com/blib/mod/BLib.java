@@ -40,6 +40,8 @@ import com.blib.internal.common.faction.BLibFactionManager;
 import com.blib.internal.common.property.BLibPropertyContainerSaveHandler;
 import com.blib.internal.common.reputation.BLibReputationManager;
 import com.blib.internal.common.storage.BLibDataStoreManager;
+import com.blib.internal.common.territory.BLibPlayerClaimManager;
+import com.blib.internal.common.territory.BLibTerritoryContestManager;
 import com.blib.internal.common.territory.BLibTerritoryManager;
 import com.blib.mod.common.gameplay.goap.GOAPDebugTracker;
 import com.blib.mod.common.network.BLibPacketDirections;
@@ -107,6 +109,7 @@ public class BLib {
         BLib.MOD.events().onPlayerStartTrackingEntity().register(BLib::syncDataForTrackedEntity);
         // TODO: There's a small bug here. This runs for both client and server levels!
         BLib.MOD.events().postLevelTick().register(ServerScheduler::tick);
+        BLib.MOD.events().postLevelTick().register(BLibTerritoryContestManager.INSTANCE::tick);
         // TODO: There's a small bug here. This runs for both client and server levels!
         BLib.MOD.events().postLevelTick().register(BlockBreakProgressManager::tick);
 
@@ -161,6 +164,7 @@ public class BLib {
             });
 
         BLib.MOD.events().onServerStarted().register(BLibTerritoryManager.INSTANCE::onServerStarted);
+        BLib.MOD.events().onServerStarted().register(BLibPlayerClaimManager.INSTANCE::syncAllTerritory);
         BLib.MOD.events().onServerStopped().register(BLibTerritoryManager.INSTANCE::onServerStopped);
         BLib.MOD.events().onChunkLoad().register(BLibTerritoryManager.INSTANCE::onChunkLoaded);
         BLib.MOD.events().onChunkLoad().register(BLibEntityReferenceManager.INSTANCE::onChunkLoaded);
@@ -226,6 +230,11 @@ public class BLib {
             .register((factionId, kind) -> {
                 if (kind == BLibFactionDataChangedEvent.Kind.CLAIM_VISIBILITY) {
                     BLibTerritoryManager.INSTANCE.syncClaimsForFactionToAllPlayers(factionId);
+                }
+                if (kind == BLibFactionDataChangedEvent.Kind.NAME
+                    || kind == BLibFactionDataChangedEvent.Kind.COLOR
+                    || kind == BLibFactionDataChangedEvent.Kind.CLAIM_MAP_STYLE) {
+                    BLibFactionManager.INSTANCE.syncFactionMetadataToAllClients(factionId);
                 }
             });
 

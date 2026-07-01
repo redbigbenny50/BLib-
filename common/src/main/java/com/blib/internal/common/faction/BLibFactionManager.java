@@ -59,6 +59,8 @@ public class BLibFactionManager implements FactionManager, EntityReferenceOwner 
 
     private final ShardManager<ResourceLocation> shardManager;
 
+    private @Nullable MinecraftServer server;
+
     private BLibFactionManager() {
         this.factions = new HashMap<>();
         this.memberIndex = new FactionMemberIndex();
@@ -197,6 +199,7 @@ public class BLibFactionManager implements FactionManager, EntityReferenceOwner 
     }
 
     public void load(MinecraftServer server) {
+        this.server = server;
         factions.clear();
         shardManager.clear();
 
@@ -247,18 +250,42 @@ public class BLibFactionManager implements FactionManager, EntityReferenceOwner 
         memberIndex.clear();
         relationshipTable.clear();
         shardManager.clear();
+        server = null;
     }
 
     public void syncAllFactionMetadataToPlayer(ServerPlayer player) {
         for (var faction : factions.values()) {
-            var payload = new S2CFactionMetadataSyncPayload(faction.id(), faction.name(), faction.color());
+            var payload = new S2CFactionMetadataSyncPayload(
+                faction.id(),
+                faction.name(),
+                faction.color(),
+                faction.claimMapStyle()
+            );
             BLib.MOD.networking().sendToClient(player, payload);
         }
     }
 
     public void syncFactionMetadataToAllClients(MinecraftServer server, Faction<?> faction) {
-        var payload = new S2CFactionMetadataSyncPayload(faction.id(), faction.name(), faction.color());
+        var payload = new S2CFactionMetadataSyncPayload(
+            faction.id(),
+            faction.name(),
+            faction.color(),
+            faction.claimMapStyle()
+        );
         BLib.MOD.networking().sendToAllClients(server, payload);
+    }
+
+    public void syncFactionMetadataToAllClients(ResourceLocation factionId) {
+        if (server == null) {
+            return;
+        }
+
+        var faction = factions.get(factionId);
+        if (faction == null) {
+            return;
+        }
+
+        syncFactionMetadataToAllClients(server, faction);
     }
 
     public @Nullable FactionData getRawModData(ResourceLocation factionId) {

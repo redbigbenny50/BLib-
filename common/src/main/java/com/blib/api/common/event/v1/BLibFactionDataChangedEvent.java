@@ -11,6 +11,7 @@ public interface BLibFactionDataChangedEvent {
         NAME,
         COLOR,
         CLAIM_VISIBILITY,
+        CLAIM_MAP_STYLE,
         BLOCK_BREAK_PROTECTION,
         BLOCK_INTERACT_PROTECTION,
         ENTITY_INTERACT_PROTECTION,

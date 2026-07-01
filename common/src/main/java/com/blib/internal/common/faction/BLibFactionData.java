@@ -1,11 +1,13 @@
 package com.blib.internal.common.faction;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.awt.Color;
 
+import com.blib.api.common.faction.v1.ClaimMapStyle;
 import com.blib.api.common.faction.v1.ClaimVisibility;
 import com.blib.api.common.faction.v1.FactionData;
 import com.blib.api.common.faction.v1.ProtectionMode;
@@ -19,6 +21,10 @@ public class BLibFactionData implements Dirty {
     private static final String KEY_COLOR = "color";
 
     private static final String KEY_CLAIM_VISIBILITY = "claim_visibility";
+
+    private static final String KEY_CLAIM_MAP_STYLE = "claim_map_style";
+
+    private static final String KEY_CLAIM_MAP_OVERLAY_TEXTURE = "overlay_texture";
 
     private static final String KEY_BLOCK_BREAK_PROTECTION = "block_break_protection";
 
@@ -42,6 +48,8 @@ public class BLibFactionData implements Dirty {
 
     private ClaimVisibility claimVisibility;
 
+    private ClaimMapStyle claimMapStyle;
+
     private ProtectionMode blockBreakProtection;
 
     private ProtectionMode blockInteractProtection;
@@ -64,6 +72,7 @@ public class BLibFactionData implements Dirty {
         this.name = name;
         this.color = color;
         this.claimVisibility = ClaimVisibility.PUBLIC;
+        this.claimMapStyle = ClaimMapStyle.DEFAULT;
         this.blockBreakProtection = ProtectionMode.PRIVATE;
         this.blockInteractProtection = ProtectionMode.PRIVATE;
         this.entityInteractProtection = ProtectionMode.PRIVATE;
@@ -98,6 +107,15 @@ public class BLibFactionData implements Dirty {
 
     public void setClaimVisibility(ClaimVisibility claimVisibility) {
         this.claimVisibility = claimVisibility;
+        markDirty();
+    }
+
+    public ClaimMapStyle claimMapStyle() {
+        return claimMapStyle;
+    }
+
+    public void setClaimMapStyle(ClaimMapStyle claimMapStyle) {
+        this.claimMapStyle = claimMapStyle == null ? ClaimMapStyle.DEFAULT : claimMapStyle;
         markDirty();
     }
 
@@ -176,6 +194,7 @@ public class BLibFactionData implements Dirty {
         tag.putString(KEY_NAME, name);
         tag.putInt(KEY_COLOR, color);
         tag.putString(KEY_CLAIM_VISIBILITY, claimVisibility.name());
+        saveClaimMapStyle(tag);
         tag.putString(KEY_BLOCK_BREAK_PROTECTION, blockBreakProtection.name());
         tag.putString(KEY_BLOCK_INTERACT_PROTECTION, blockInteractProtection.name());
         tag.putString(KEY_ENTITY_INTERACT_PROTECTION, entityInteractProtection.name());
@@ -202,6 +221,8 @@ public class BLibFactionData implements Dirty {
                 claimVisibility = ClaimVisibility.PUBLIC;
             }
         }
+
+        claimMapStyle = loadClaimMapStyle(tag);
 
         if (tag.contains(KEY_BLOCK_BREAK_PROTECTION)) {
             try {
@@ -250,6 +271,29 @@ public class BLibFactionData implements Dirty {
         if (modData != null && tag.contains(KEY_MOD_DATA)) {
             modData.load(tag.getCompound(KEY_MOD_DATA));
         }
+    }
+
+    private void saveClaimMapStyle(CompoundTag tag) {
+        if (claimMapStyle == null || !claimMapStyle.hasOverlayTexture()) {
+            return;
+        }
+
+        var styleTag = new CompoundTag();
+        styleTag.putString(KEY_CLAIM_MAP_OVERLAY_TEXTURE, claimMapStyle.overlayTexture().toString());
+        tag.put(KEY_CLAIM_MAP_STYLE, styleTag);
+    }
+
+    private static ClaimMapStyle loadClaimMapStyle(CompoundTag tag) {
+        if (!tag.contains(KEY_CLAIM_MAP_STYLE)) {
+            return ClaimMapStyle.DEFAULT;
+        }
+
+        var styleTag = tag.getCompound(KEY_CLAIM_MAP_STYLE);
+        var texture = styleTag.contains(KEY_CLAIM_MAP_OVERLAY_TEXTURE)
+            ? ResourceLocation.tryParse(styleTag.getString(KEY_CLAIM_MAP_OVERLAY_TEXTURE))
+            : null;
+
+        return new ClaimMapStyle(texture);
     }
 
     @Override

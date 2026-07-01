@@ -79,6 +79,18 @@ public class Faction<T extends FactionData> {
         }
     }
 
+    public ClaimMapStyle claimMapStyle() {
+        return internalData.claimMapStyle();
+    }
+
+    public void setClaimMapStyle(ClaimMapStyle claimMapStyle) {
+        var oldClaimMapStyle = internalData.claimMapStyle();
+        internalData.setClaimMapStyle(claimMapStyle);
+        if (!Objects.equals(oldClaimMapStyle, internalData.claimMapStyle())) {
+            fireDataChanged(BLibFactionDataChangedEvent.Kind.CLAIM_MAP_STYLE);
+        }
+    }
+
     public ProtectionMode blockBreakProtection() {
         return internalData.blockBreakProtection();
     }

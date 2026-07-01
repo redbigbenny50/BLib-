@@ -44,7 +44,7 @@ public final class BLibClientListener {
     }
 
     public static void handleFactionMetadataSync(S2CFactionMetadataSyncPayload payload, Player player) {
-        ClientFactionCache.INSTANCE.update(payload.factionId(), payload.name(), payload.color());
+        ClientFactionCache.INSTANCE.update(payload.factionId(), payload.name(), payload.color(), payload.claimMapStyle());
     }
 
     public static void handleLimbDefinitionsSync(S2CLimbDefinitionsSyncPayload payload, Player player) {

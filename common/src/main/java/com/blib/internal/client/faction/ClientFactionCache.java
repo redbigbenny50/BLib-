@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.blib.api.common.faction.v1.ClaimMapStyle;
 import com.blib.internal.client.territory.compat.XaeroWorldMapCompat;
 import com.blib.internal.client.territory.compat.xaero.BLibChunkHighlighter;
 
@@ -21,8 +22,11 @@ public class ClientFactionCache {
         this.metadataByFactionId = new HashMap<>();
     }
 
-    public void update(ResourceLocation factionId, String name, int color) {
-        metadataByFactionId.put(factionId, new FactionMetadata(name, color));
+    public void update(ResourceLocation factionId, String name, int color, ClaimMapStyle claimMapStyle) {
+        if (claimMapStyle == null) {
+            claimMapStyle = ClaimMapStyle.DEFAULT;
+        }
+        metadataByFactionId.put(factionId, new FactionMetadata(name, color, claimMapStyle));
 
         if (XaeroWorldMapCompat.isLoaded()) {
             BLibChunkHighlighter.invalidateAll();
@@ -39,6 +43,7 @@ public class ClientFactionCache {
 
     public record FactionMetadata(
         String name,
-        int color
+        int color,
+        ClaimMapStyle claimMapStyle
     ) {}
 }

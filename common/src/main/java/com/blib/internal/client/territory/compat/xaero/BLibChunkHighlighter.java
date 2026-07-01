@@ -1,5 +1,6 @@
 package com.blib.internal.client.territory.compat.xaero;
 
+import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -12,7 +13,11 @@ import xaero.map.highlight.ChunkHighlighter;
 import xaero.map.highlight.HighlighterRegistry;
 
 import java.awt.Color;
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import com.blib.internal.client.faction.ClientFactionCache;
 import com.blib.internal.client.territory.ClientTerritoryCache;
@@ -26,6 +31,8 @@ public class BLibChunkHighlighter extends ChunkHighlighter {
 
     private static final int CONTESTED_COLOR = packColor(0xFFFF00);
 
+    private static final Map<ResourceLocation, Optional<int[]>> OVERLAY_TEXTURE_CACHE = new HashMap<>();
+
     public BLibChunkHighlighter() {
         super(true);
     }
@@ -35,6 +42,7 @@ public class BLibChunkHighlighter extends ChunkHighlighter {
     }
 
     public static void invalidateAll() {
+        OVERLAY_TEXTURE_CACHE.clear();
         Minecraft.getInstance().tell(() -> {
             var session = WorldMapSession.getCurrentSession();
 
@@ -109,6 +117,25 @@ public class BLibChunkHighlighter extends ChunkHighlighter {
     }
 
     @Override
+    public int[] getChunkHighlitColor(ResourceKey<Level> dimension, int x, int z) {
+        var cache = ClientTerritoryCache.INSTANCE;
+        var dimensionId = dimension.location();
+        var factionIds = cache.getFactionIds(dimensionId, new ChunkPos(x, z));
+
+        if (factionIds.size() == 1) {
+            var texture = overlayTextureFromFaction(factionIds.getFirst());
+            var pixels = texture == null ? Optional.<int[]>empty() : overlayPixels(texture);
+
+            if (pixels.isPresent()) {
+                System.arraycopy(pixels.get(), 0, resultStore, 0, 256);
+                return resultStore;
+            }
+        }
+
+        return super.getChunkHighlitColor(dimension, x, z);
+    }
+
+    @Override
     protected int[] getColors(ResourceKey<Level> dimension, int x, int z) {
         var cache = ClientTerritoryCache.INSTANCE;
         var dimensionId = dimension.location();
@@ -162,6 +189,7 @@ public class BLibChunkHighlighter extends ChunkHighlighter {
                 for (var factionId : factionIds) {
                     hash = hash * 37L + factionId.hashCode();
                     hash = hash * 37L + colorFromFaction(factionId);
+                    hash = hash * 37L + overlayTextureHashFromFaction(factionId);
                 }
 
                 hash = hash * 37L;
@@ -231,6 +259,72 @@ public class BLibChunkHighlighter extends ChunkHighlighter {
         var hue = (hash & 0x7FFFFFFF) % 360 / 360.0f;
 
         return Color.HSBtoRGB(hue, 0.7f, 0.9f);
+    }
+
+    private static ResourceLocation overlayTextureFromFaction(ResourceLocation factionId) {
+        var metadata = ClientFactionCache.INSTANCE.get(factionId);
+
+        if (metadata == null || metadata.claimMapStyle() == null) {
+            return null;
+        }
+
+        return metadata.claimMapStyle().overlayTexture();
+    }
+
+    private static int overlayTextureHashFromFaction(ResourceLocation factionId) {
+        var texture = overlayTextureFromFaction(factionId);
+
+        return texture == null ? 0 : texture.hashCode();
+    }
+
+    private static Optional<int[]> overlayPixels(ResourceLocation texture) {
+        return OVERLAY_TEXTURE_CACHE.computeIfAbsent(texture, BLibChunkHighlighter::loadOverlayPixels);
+    }
+
+    private static Optional<int[]> loadOverlayPixels(ResourceLocation texture) {
+        var resourceTexture = normalizeTextureLocation(texture);
+        var resource = Minecraft.getInstance().getResourceManager().getResource(resourceTexture);
+
+        if (resource.isEmpty()) {
+            return Optional.empty();
+        }
+
+        try (var input = resource.get().open(); var image = NativeImage.read(input)) {
+            var pixels = new int[256];
+            var width = image.getWidth();
+            var height = image.getHeight();
+
+            for (var y = 0; y < 16; y++) {
+                for (var x = 0; x < 16; x++) {
+                    var sampleX = Math.min(width - 1, x * width / 16);
+                    var sampleY = Math.min(height - 1, y * height / 16);
+                    pixels[y * 16 + x] = packNativeImageColor(image.getPixelRGBA(sampleX, sampleY));
+                }
+            }
+
+            return Optional.of(pixels);
+        } catch (IOException exception) {
+            return Optional.empty();
+        }
+    }
+
+    private static ResourceLocation normalizeTextureLocation(ResourceLocation texture) {
+        var path = texture.getPath();
+
+        if (path.startsWith("textures/") && path.endsWith(".png")) {
+            return texture;
+        }
+
+        return ResourceLocation.fromNamespaceAndPath(texture.getNamespace(), "textures/" + path + ".png");
+    }
+
+    private static int packNativeImageColor(int color) {
+        var red = color & 0xFF;
+        var green = (color >> 8) & 0xFF;
+        var blue = (color >> 16) & 0xFF;
+        var alpha = (color >> 24) & 0xFF;
+
+        return (blue << 24) | (green << 16) | (red << 8) | alpha;
     }
 
     private static int packColor(int rgb) {

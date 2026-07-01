@@ -8,6 +8,8 @@ import com.blib.api.common.registry.v1.BLibRegistry;
 import com.blib.api.common.storage.v1.DataStore;
 import com.blib.api.common.storage.v1.DataStoreType;
 import com.blib.internal.common.territory.ChunkClaimDataStore;
+import com.blib.internal.common.territory.PlayerClaimDataStore;
+import com.blib.internal.common.territory.TerritoryContestDataStore;
 import com.blib.mod.BLib;
 
 public class BLibTerritoryDataStoreTypes {
@@ -18,6 +20,16 @@ public class BLibTerritoryDataStoreTypes {
     public static final BLibHolder<DataStoreType<ChunkClaimDataStore>> CHUNK_CLAIMS = register(
         "chunk_claims",
         () -> new DataStoreType<>(ChunkClaimDataStore::new)
+    );
+
+    public static final BLibHolder<DataStoreType<PlayerClaimDataStore>> PLAYER_CLAIMS = register(
+        "player_claims",
+        () -> new DataStoreType<>(PlayerClaimDataStore::new)
+    );
+
+    public static final BLibHolder<DataStoreType<TerritoryContestDataStore>> TERRITORY_CONTESTS = register(
+        "territory_contests",
+        () -> new DataStoreType<>(TerritoryContestDataStore::new)
     );
 
     private static <T extends DataStore> BLibHolder<DataStoreType<T>> register(
