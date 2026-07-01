@@ -7,16 +7,16 @@ import net.minecraft.world.level.block.Blocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 public class BlockBreakProgressManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BlockBreakProgressManager.class);
 
-    private static final Map<BlockPos, Map.Entry<Long, Float>> BLOCK_BREAK_PROGRESS_MAP = new HashMap<>();
+    private static final Map<BlockPos, Map.Entry<Long, Float>> BLOCK_BREAK_PROGRESS_MAP = new ConcurrentHashMap<>();
 
     public static void tick(Level level) {
         var gameTime = level.getGameTime();
@@ -40,13 +40,13 @@ public class BlockBreakProgressManager {
     }
 
     public static void resetProgress(Level level, BlockPos pos) {
-        BlockBreakProgressManager.BLOCK_BREAK_PROGRESS_MAP.remove(pos);
+        BlockBreakProgressManager.BLOCK_BREAK_PROGRESS_MAP.remove(pos.immutable());
         level.destroyBlockProgress(computeBlockPosHash(pos), pos, -1);
     }
 
     public static void setProgress(Level level, BlockPos pos, float progress) {
         var newEntry = Map.entry(System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(5), progress);
-        BlockBreakProgressManager.BLOCK_BREAK_PROGRESS_MAP.put(pos, newEntry);
+        BlockBreakProgressManager.BLOCK_BREAK_PROGRESS_MAP.put(pos.immutable(), newEntry);
 
         var clampedProgress = getClampedProgress(progress);
         level.destroyBlockProgress(computeBlockPosHash(pos), pos, clampedProgress);
