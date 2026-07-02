@@ -15,6 +15,8 @@
     "MixinEntity_DataUser",
     "MixinEntity_Events",
     "MixinEntityTypeBuilder_SilenceDataFixerError",
+    "MixinGameRulesBooleanValueAccessor",
+    "MixinGameRulesAccessor",
     "MixinHolder",
     "MixinItem_BLibShieldItem",
     "MixinLevelChunk_TerrainCacheInvalidation",

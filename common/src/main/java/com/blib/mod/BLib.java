@@ -57,6 +57,7 @@ import com.blib.mod.common.registry.init.BLibDataStoreTypes;
 import com.blib.mod.common.registry.init.BLibDataSyncKeys;
 import com.blib.mod.common.registry.init.BLibEntityTypes;
 import com.blib.mod.common.registry.init.BLibFactionDataTypes;
+import com.blib.mod.common.registry.init.BLibGameRules;
 import com.blib.mod.common.registry.init.BLibLootItemConditionTypes;
 import com.blib.mod.common.registry.init.BLibPropertyContainerTypes;
 import com.blib.mod.common.registry.init.BLibReloadListeners;
@@ -77,6 +78,7 @@ public class BLib {
 
         LOGGER.info("Initializing BLib for platform '{}'", BLibAPI.getModLoaderType());
 
+        BLibGameRules.initialize();
         BLibModPropertyAccess.INSTANCE.save();
 
         BLib.MOD.initialize(BLib::runInitialization);
@@ -412,6 +414,9 @@ public class BLib {
         if (level.isClientSide || !(level instanceof ServerLevel serverLevel)) {
             return true;
         }
+        if (!serverLevel.getGameRules().getBoolean(BLibGameRules.TERRITORY_BUILD_PROTECTION)) {
+            return true;
+        }
 
         var chunkPos = new ChunkPos(blockPos);
         var claimants = BLibTerritoryManager.INSTANCE.getClaimants(serverLevel, chunkPos);
@@ -424,6 +429,14 @@ public class BLib {
         var playerFactionIds = BLibFactionManager.INSTANCE.getFactionIds(playerUuid);
 
         for (var claimantFactionId : claimants) {
+            var playerClaimOwner = BLibPlayerClaimManager.getPlayerClaimOwner(claimantFactionId);
+            if (
+                playerClaimOwner != null
+                    && BLibPlayerClaimManager.INSTANCE.canAccess(serverLevel.getServer(), playerClaimOwner, playerUuid)
+            ) {
+                continue;
+            }
+
             var faction = BLibFactionManager.INSTANCE.get(claimantFactionId);
 
             if (faction == null) {

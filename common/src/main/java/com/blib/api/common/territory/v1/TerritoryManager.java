@@ -54,6 +54,16 @@ public interface TerritoryManager {
 
     void addPurchasedPlayerClaimSlot(MinecraftServer server, UUID owner);
 
+    boolean addPlayerClaimAlly(MinecraftServer server, UUID owner, UUID ally);
+
+    boolean removePlayerClaimAlly(MinecraftServer server, UUID owner, UUID ally);
+
+    Set<UUID> getPlayerClaimAllies(MinecraftServer server, UUID owner);
+
+    boolean canAccessPlayerClaim(MinecraftServer server, UUID owner, UUID player);
+
+    void setPlayerClaimColor(UUID owner, int color);
+
     ResourceLocation getPlayerClaimFactionId(UUID owner);
 
     TerritoryContestManager contests();

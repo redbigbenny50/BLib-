@@ -11,9 +11,6 @@ import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
-import java.util.UUID;
-
 import com.blib.api.common.territory.v1.TerritoryContest;
 import com.blib.api.common.territory.v1.TerritoryContestListener;
 import com.blib.internal.common.faction.BLibFactionManager;
@@ -22,10 +19,6 @@ import com.blib.internal.common.faction.BLibFactionManager;
 public class BLibPlayerClaimContestNotifier implements TerritoryContestListener {
 
     public static final BLibPlayerClaimContestNotifier INSTANCE = new BLibPlayerClaimContestNotifier();
-
-    private static final long REMINDER_INTERVAL_TICKS = 600;
-
-    private final HashMap<ReminderKey, Long> lastReminderTicks = new HashMap<>();
 
     private BLibPlayerClaimContestNotifier() {}
 
@@ -39,16 +32,20 @@ public class BLibPlayerClaimContestNotifier implements TerritoryContestListener 
     public void onContestResolved(ServerLevel level, TerritoryContest contest, ResourceLocation winner, ResourceLocation loser) {
         notifyParticipant(level, contest, winner, true, resolvedMessage(level, contest, true));
         notifyParticipant(level, contest, loser, true, resolvedMessage(level, contest, false));
-        clearReminder(contest);
     }
 
     @Override
     public void onContestCancelled(ServerLevel level, TerritoryContest contest) {
-        var message = Component.literal("The contest at your claim " + chunkLabel(contest) + " ended.")
+        var message = Component.literal(
+            "The contest at your claim chunk "
+                + chunkLabel(contest)
+                + " in "
+                + level.dimension().location()
+                + " ended."
+        )
             .withStyle(ChatFormatting.YELLOW);
         notifyParticipant(level, contest, contest.attacker(), true, message);
         notifyParticipant(level, contest, contest.defender(), true, message);
-        clearReminder(contest);
     }
 
     public void tick(Level level) {
@@ -62,9 +59,7 @@ public class BLibPlayerClaimContestNotifier implements TerritoryContestListener 
         }
     }
 
-    public void clear(MinecraftServer server) {
-        lastReminderTicks.clear();
-    }
+    public void clear(MinecraftServer server) {}
 
     private void remindParticipant(ServerLevel level, TerritoryContest contest, ResourceLocation factionId) {
         var owner = BLibPlayerClaimManager.getPlayerClaimOwner(factionId);
@@ -77,15 +72,7 @@ public class BLibPlayerClaimContestNotifier implements TerritoryContestListener 
             return;
         }
 
-        var key = new ReminderKey(owner, contest.dimension(), contest.chunkX(), contest.chunkZ());
-        var now = level.getGameTime();
-        var lastReminder = lastReminderTicks.getOrDefault(key, Long.MIN_VALUE);
-        if (now - lastReminder < REMINDER_INTERVAL_TICKS) {
-            return;
-        }
-
-        player.displayClientMessage(contestedActionbar(player), true);
-        lastReminderTicks.put(key, now);
+        player.displayClientMessage(contestedActionbar(level, player, contest), true);
     }
 
     private void notifyParticipant(
@@ -102,11 +89,7 @@ public class BLibPlayerClaimContestNotifier implements TerritoryContestListener 
 
         player.sendSystemMessage(message);
         if (actionbar) {
-            player.displayClientMessage(contestedActionbar(player), true);
-            lastReminderTicks.put(
-                new ReminderKey(player.getUUID(), contest.dimension(), contest.chunkX(), contest.chunkZ()),
-                level.getGameTime()
-            );
+            player.displayClientMessage(contestedActionbar(level, player, contest), true);
         }
     }
 
@@ -134,8 +117,14 @@ public class BLibPlayerClaimContestNotifier implements TerritoryContestListener 
         return Component.literal(text).withStyle(won ? ChatFormatting.GREEN : ChatFormatting.RED);
     }
 
-    private static Component contestedActionbar(ServerPlayer player) {
-        return Component.literal("CONTESTED - Claim: " + player.getGameProfile().getName()).withStyle(ChatFormatting.RED);
+    private static Component contestedActionbar(ServerLevel level, ServerPlayer player, TerritoryContest contest) {
+        return Component.literal(
+            "CONTESTED - Claim: " + player.getGameProfile().getName() + " at chunk " + chunkLabel(contest)
+        ).withStyle(contestedFlashColor(level));
+    }
+
+    private static ChatFormatting contestedFlashColor(ServerLevel level) {
+        return (level.getGameTime() / 10L) % 2L == 0L ? ChatFormatting.RED : ChatFormatting.DARK_RED;
     }
 
     private static String factionName(ServerLevel level, ResourceLocation factionId) {
@@ -153,12 +142,4 @@ public class BLibPlayerClaimContestNotifier implements TerritoryContestListener 
         return contest.chunkX() + ", " + contest.chunkZ();
     }
 
-    private void clearReminder(TerritoryContest contest) {
-        lastReminderTicks.keySet()
-            .removeIf(key -> key.dimension.equals(contest.dimension())
-                && key.chunkX == contest.chunkX()
-                && key.chunkZ == contest.chunkZ());
-    }
-
-    private record ReminderKey(UUID owner, ResourceLocation dimension, int chunkX, int chunkZ) {}
 }

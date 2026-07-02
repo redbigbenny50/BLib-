@@ -132,6 +132,31 @@ public class BLibTerritoryAccess implements TerritoryManager {
     }
 
     @Override
+    public boolean addPlayerClaimAlly(MinecraftServer server, UUID owner, UUID ally) {
+        return BLibPlayerClaimManager.INSTANCE.addAlly(server, owner, ally);
+    }
+
+    @Override
+    public boolean removePlayerClaimAlly(MinecraftServer server, UUID owner, UUID ally) {
+        return BLibPlayerClaimManager.INSTANCE.removeAlly(server, owner, ally);
+    }
+
+    @Override
+    public Set<UUID> getPlayerClaimAllies(MinecraftServer server, UUID owner) {
+        return BLibPlayerClaimManager.INSTANCE.allies(server, owner);
+    }
+
+    @Override
+    public boolean canAccessPlayerClaim(MinecraftServer server, UUID owner, UUID player) {
+        return BLibPlayerClaimManager.INSTANCE.canAccess(server, owner, player);
+    }
+
+    @Override
+    public void setPlayerClaimColor(UUID owner, int color) {
+        BLibPlayerClaimManager.INSTANCE.setClaimColor(owner, color);
+    }
+
+    @Override
     public ResourceLocation getPlayerClaimFactionId(UUID owner) {
         return BLibPlayerClaimManager.playerClaimId(owner);
     }

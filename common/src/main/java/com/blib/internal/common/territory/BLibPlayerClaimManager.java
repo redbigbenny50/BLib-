@@ -8,6 +8,7 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
+import java.util.Set;
 
 import com.blib.api.common.faction.v1.ClaimVisibility;
 import com.blib.internal.common.faction.BLibFactionManager;
@@ -105,6 +106,32 @@ public class BLibPlayerClaimManager {
         ensurePlayerClaimFaction(owner);
     }
 
+    public boolean addAlly(MinecraftServer server, UUID owner, UUID ally) {
+        ensurePlayerClaimFaction(owner);
+        ensurePlayerClaimFaction(ally);
+        return getStore(server).addAlly(owner, ally);
+    }
+
+    public boolean removeAlly(MinecraftServer server, UUID owner, UUID ally) {
+        return getStore(server).removeAlly(owner, ally);
+    }
+
+    public Set<UUID> allies(MinecraftServer server, UUID owner) {
+        return getStore(server).allies(owner);
+    }
+
+    public boolean canAccess(MinecraftServer server, UUID owner, UUID player) {
+        return owner.equals(player) || getStore(server).isAlly(owner, player);
+    }
+
+    public void setClaimColor(UUID owner, int color) {
+        ensurePlayerClaimFaction(owner);
+        var faction = BLibFactionManager.INSTANCE.get(playerClaimId(owner));
+        if (faction != null) {
+            faction.setColor(color & 0xFFFFFF);
+        }
+    }
+
     public void syncAllTerritory(MinecraftServer server) {
         getStore(server).syncAllTerritory(server);
     }
@@ -149,6 +176,7 @@ public class BLibPlayerClaimManager {
         }
 
         faction.setClaimVisibility(ClaimVisibility.PUBLIC);
+        faction.setAllowMobGriefing(true);
     }
 
     private static int colorFor(UUID owner) {

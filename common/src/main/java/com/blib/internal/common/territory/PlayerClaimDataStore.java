@@ -2,11 +2,13 @@ package com.blib.internal.common.territory;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.IntArrayTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -14,7 +16,9 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import com.blib.api.common.storage.v1.DataStore;
@@ -36,9 +40,13 @@ public class PlayerClaimDataStore implements DataStore {
 
     private static final String NBT_EXTRA_SLOTS = "ExtraSlots";
 
+    private static final String NBT_ALLIES = "Allies";
+
     private final Map<ClaimKey, UUID> ownersByClaim = new HashMap<>();
 
     private final Map<UUID, Integer> purchasedExtraSlots = new HashMap<>();
+
+    private final Map<UUID, Set<UUID>> alliesByOwner = new HashMap<>();
 
     public boolean claim(ServerLevel level, ChunkPos chunk, UUID owner) {
         var key = ClaimKey.of(level.dimension(), chunk);
@@ -97,6 +105,36 @@ public class PlayerClaimDataStore implements DataStore {
         purchasedExtraSlots.merge(owner, 1, Integer::sum);
     }
 
+    public boolean addAlly(UUID owner, UUID ally) {
+        if (owner.equals(ally)) {
+            return false;
+        }
+        return alliesByOwner.computeIfAbsent(owner, $owner -> new HashSet<>()).add(ally);
+    }
+
+    public boolean removeAlly(UUID owner, UUID ally) {
+        var allies = alliesByOwner.get(owner);
+        if (allies == null) {
+            return false;
+        }
+
+        var changed = allies.remove(ally);
+        if (allies.isEmpty()) {
+            alliesByOwner.remove(owner);
+        }
+        return changed;
+    }
+
+    public boolean isAlly(UUID owner, UUID player) {
+        var allies = alliesByOwner.get(owner);
+        return allies != null && allies.contains(player);
+    }
+
+    public Set<UUID> allies(UUID owner) {
+        var allies = alliesByOwner.get(owner);
+        return allies == null ? Set.of() : Set.copyOf(allies);
+    }
+
     public void syncAllTerritory(MinecraftServer server) {
         for (var entry : ownersByClaim.entrySet()) {
             var key = entry.getKey();
@@ -117,6 +155,7 @@ public class PlayerClaimDataStore implements DataStore {
     public void load(CompoundTag compoundTag) {
         ownersByClaim.clear();
         purchasedExtraSlots.clear();
+        alliesByOwner.clear();
 
         if (compoundTag.contains(NBT_CLAIMS, Tag.TAG_LIST)) {
             var claimTags = compoundTag.getList(NBT_CLAIMS, Tag.TAG_COMPOUND);
@@ -145,6 +184,25 @@ public class PlayerClaimDataStore implements DataStore {
                 }
             }
         }
+
+        if (compoundTag.contains(NBT_ALLIES, Tag.TAG_COMPOUND)) {
+            var alliesTag = compoundTag.getCompound(NBT_ALLIES);
+            for (var ownerKey : alliesTag.getAllKeys()) {
+                try {
+                    var owner = UUID.fromString(ownerKey);
+                    var allyList = alliesTag.getList(ownerKey, Tag.TAG_INT_ARRAY);
+                    var allies = new HashSet<UUID>();
+                    for (var i = 0; i < allyList.size(); i++) {
+                        allies.add(UUIDUtil.uuidFromIntArray(allyList.getIntArray(i)));
+                    }
+                    if (!allies.isEmpty()) {
+                        alliesByOwner.put(owner, allies);
+                    }
+                } catch (IllegalArgumentException ignored) {
+                    // Ignore malformed legacy rows.
+                }
+            }
+        }
     }
 
     @Override
@@ -163,6 +221,16 @@ public class PlayerClaimDataStore implements DataStore {
         var extraSlotsTag = new CompoundTag();
         purchasedExtraSlots.forEach((owner, slots) -> extraSlotsTag.putInt(owner.toString(), slots));
         compoundTag.put(NBT_EXTRA_SLOTS, extraSlotsTag);
+
+        var alliesTag = new CompoundTag();
+        alliesByOwner.forEach((owner, allies) -> {
+            var allyList = new ListTag();
+            for (var ally : allies) {
+                allyList.add(new IntArrayTag(UUIDUtil.uuidToIntArray(ally)));
+            }
+            alliesTag.put(owner.toString(), allyList);
+        });
+        compoundTag.put(NBT_ALLIES, alliesTag);
     }
 
     private record ClaimKey(

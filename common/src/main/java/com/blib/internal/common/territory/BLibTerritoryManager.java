@@ -304,6 +304,10 @@ public class BLibTerritoryManager {
         var claimants = getClaimants(level, pos);
 
         for (var factionId : claimants) {
+            if (BLibPlayerClaimManager.isPlayerClaimId(factionId)) {
+                continue;
+            }
+
             var faction = BLibFactionManager.INSTANCE.get(factionId);
 
             if (faction != null && !faction.allowMobGriefing()) {
