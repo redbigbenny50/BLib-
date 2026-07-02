@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.List;
 
 import com.blib.api.client.render.v1.BLibTransform;
 import com.blib.internal.client.render.item.config.BLibItemRendererConfigs;
@@ -25,6 +26,7 @@ import com.blib.internal.client.render.item.config.BLibItemRendererConfigs;
  *                           pass through this bone is hidden via the renderer's
  *                           {@link com.blib.api.client.render.v1.BoneVisibilityFilter}. The bone itself and all its
  *                           descendants stay visible.
+ * @param hiddenBoneNames    Descendant bones to hide while rendering the selected bone subtree.
  * @param idleTransforms     Transforms applied per-context when the holder is not using the item as a shield (or
  *                           always, if {@code blockingTransforms} is null). Lookup falls back to
  *                           {@link BLibTransform#IDENTITY} for any context not explicitly set.
@@ -46,6 +48,7 @@ public record BLibGeoBoneItemRendererConfig(
     ResourceLocation geoModel,
     ResourceLocation texture,
     String boneName,
+    List<String> hiddenBoneNames,
     BLibItemTransforms idleTransforms,
     @Nullable BLibItemTransforms blockingTransforms,
     Predicate<ItemStack> isBlocking,
@@ -56,6 +59,8 @@ public record BLibGeoBoneItemRendererConfig(
         if (boneName == null || boneName.isBlank()) {
             throw new IllegalArgumentException("boneName must be non-blank");
         }
+
+        hiddenBoneNames = List.copyOf(hiddenBoneNames);
     }
 
     public static Builder builder(ResourceLocation geoModel, ResourceLocation texture, String boneName) {
@@ -99,8 +104,9 @@ public record BLibGeoBoneItemRendererConfig(
         var model = resolved != null ? resolved.model() : ResourceLocation.fromNamespaceAndPath("blib", "missing");
         var texture = resolved != null ? resolved.texture() : ResourceLocation.fromNamespaceAndPath("blib", "missing");
         var bone = resolved != null ? resolved.boneName() : "missing";
+        var hiddenBoneNames = resolved != null ? resolved.hiddenBoneNames() : List.<String>of();
 
-        return new BLibGeoBoneItemRendererConfig(model, texture, bone, idleTunable, blockingTunable, isBlocking, configId);
+        return new BLibGeoBoneItemRendererConfig(model, texture, bone, hiddenBoneNames, idleTunable, blockingTunable, isBlocking, configId);
     }
 
     public static final class Builder {
@@ -110,6 +116,8 @@ public record BLibGeoBoneItemRendererConfig(
         private final ResourceLocation texture;
 
         private final String boneName;
+
+        private List<String> hiddenBoneNames = List.of();
 
         private BLibItemTransforms idleTransforms = BLibItemTransforms.builder().build();
 
@@ -133,6 +141,11 @@ public record BLibGeoBoneItemRendererConfig(
             return this;
         }
 
+        public Builder hiddenBones(String... boneNames) {
+            this.hiddenBoneNames = List.of(boneNames);
+            return this;
+        }
+
         public Builder isBlocking(Predicate<ItemStack> predicate) {
             this.isBlocking = predicate;
             return this;
@@ -143,6 +156,7 @@ public record BLibGeoBoneItemRendererConfig(
                 geoModel,
                 texture,
                 boneName,
+                hiddenBoneNames,
                 idleTransforms,
                 blockingTransforms,
                 isBlocking,

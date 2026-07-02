@@ -5,6 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.blib.api.client.render.v1.item.BLibItemTransforms;
@@ -19,6 +20,7 @@ public record RawItemRendererConfig(
     @Nullable ResourceLocation model,
     @Nullable ResourceLocation texture,
     @Nullable String bone,
+    @Nullable List<String> hiddenBoneNames,
     @Nullable BLibItemTransforms idleTransforms,
     @Nullable BLibItemTransforms blockingTransforms
 ) {
@@ -29,16 +31,18 @@ public record RawItemRendererConfig(
             ResourceLocation.CODEC.optionalFieldOf("model").forGetter(c -> Optional.ofNullable(c.model)),
             ResourceLocation.CODEC.optionalFieldOf("texture").forGetter(c -> Optional.ofNullable(c.texture)),
             Codec.STRING.optionalFieldOf("bone").forGetter(c -> Optional.ofNullable(c.bone)),
+            Codec.STRING.listOf().optionalFieldOf("hidden_bones").forGetter(c -> Optional.ofNullable(c.hiddenBoneNames)),
             TransformsBlock.CODEC.optionalFieldOf("transforms", new TransformsBlock(null, null))
                 .forGetter(c -> new TransformsBlock(c.idleTransforms, c.blockingTransforms))
         )
             .apply(
                 instance,
-                (parent, model, texture, bone, transforms) -> new RawItemRendererConfig(
+                (parent, model, texture, bone, hiddenBoneNames, transforms) -> new RawItemRendererConfig(
                     parent.orElse(null),
                     model.orElse(null),
                     texture.orElse(null),
                     bone.orElse(null),
+                    hiddenBoneNames.orElse(null),
                     transforms.idle,
                     transforms.blocking
                 )

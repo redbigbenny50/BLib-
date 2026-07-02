@@ -3,6 +3,8 @@ package com.blib.internal.client.render.item.config;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
+
 import com.blib.api.client.render.v1.item.BLibItemTransforms;
 
 /**
@@ -19,6 +21,7 @@ public record ResolvedItemRendererConfig(
     ResourceLocation model,
     ResourceLocation texture,
     String boneName,
+    List<String> hiddenBoneNames,
     BLibItemTransforms idleTransforms,
     @Nullable BLibItemTransforms blockingTransforms
 ) {}

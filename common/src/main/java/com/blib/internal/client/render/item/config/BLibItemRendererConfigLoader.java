@@ -77,6 +77,7 @@ public final class BLibItemRendererConfigLoader extends SimpleJsonResourceReload
                     merged.model(),
                     merged.texture(),
                     merged.bone(),
+                    merged.hiddenBoneNames() != null ? merged.hiddenBoneNames() : java.util.List.of(),
                     merged.idleTransforms() != null ? merged.idleTransforms() : BLibItemTransforms.builder().build(),
                     merged.blockingTransforms()
                 )
@@ -132,9 +133,21 @@ public final class BLibItemRendererConfigLoader extends SimpleJsonResourceReload
             child.model() != null ? child.model() : parent.model(),
             child.texture() != null ? child.texture() : parent.texture(),
             child.bone() != null ? child.bone() : parent.bone(),
+            mergeList(parent.hiddenBoneNames(), child.hiddenBoneNames()),
             mergeTransforms(parent.idleTransforms(), child.idleTransforms()),
             mergeTransforms(parent.blockingTransforms(), child.blockingTransforms())
         );
+    }
+
+    private static @Nullable java.util.List<String> mergeList(
+        @Nullable java.util.List<String> parent,
+        @Nullable java.util.List<String> child
+    ) {
+        if (child != null) {
+            return child;
+        }
+
+        return parent;
     }
 
     /**

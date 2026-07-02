@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
 import java.util.UUID;
+import java.util.Set;
 
 import com.blib.api.client.model.v1.AzBakedModel;
 import com.blib.api.client.render.v1.AzRendererPipelineContext;
@@ -62,6 +63,8 @@ public class BLibGeoBoneItemRenderer extends AzItemRenderer {
     }
 
     private static AzItemRendererConfig buildConfig(BLibGeoBoneItemRendererConfig config) {
+        var hiddenBoneNames = Set.copyOf(config.hiddenBoneNames());
+
         return AzItemRendererConfig.builder(config.geoModel(), config.texture())
             .setModelRenderer(
                 (pipeline, layerRenderer) -> new BLibGeoBoneItemModelRenderer(
@@ -71,6 +74,7 @@ public class BLibGeoBoneItemRenderer extends AzItemRenderer {
                 )
             )
             .disableAnimationInAllContexts()
+            .setBoneVisibilityFilter((bone, stack) -> hiddenBoneNames.contains(bone.getName()))
             .setPrerenderEntry(context -> {
                 applyTransforms(config, context);
                 return context;
