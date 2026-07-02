@@ -3,6 +3,8 @@ package com.blib.api.client.render.v1.dismemberment;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -144,6 +146,7 @@ public class LimbEntityModelRenderer extends AzEntityModelRenderer<DismemberedLi
         if (context.vertexConsumer() != null) {
             entityRendererPipeline.updateAnimatedTextureFrame(animatable);
             excludedBoneNames = Set.copyOf(visuals.excludedBoneNames());
+            var restoredBones = applyBoneTransforms(context, visuals.boneTransforms());
             try {
                 renderRecursively(context, rootBone, isReRender);
 
@@ -163,6 +166,7 @@ public class LimbEntityModelRenderer extends AzEntityModelRenderer<DismemberedLi
                     }
                 }
             } finally {
+                restoreBoneTransforms(restoredBones);
                 excludedBoneNames = Set.of();
             }
 
@@ -179,5 +183,81 @@ public class LimbEntityModelRenderer extends AzEntityModelRenderer<DismemberedLi
         }
 
         super.renderRecursively(context, bone, isReRender);
+    }
+
+    private static List<RestoredBoneTransform> applyBoneTransforms(
+        AzRendererPipelineContext<UUID, DismemberedLimbEntity> context,
+        java.util.Map<String, com.blib.api.common.dismemberment.v1.LimbBoneTransform> transforms
+    ) {
+        if (transforms.isEmpty()) {
+            return List.of();
+        }
+
+        var restoredBones = new ArrayList<RestoredBoneTransform>();
+        var model = context.bakedModel();
+
+        for (var entry : transforms.entrySet()) {
+            var bone = model.getBoneOrNull(entry.getKey());
+
+            if (bone == null) {
+                continue;
+            }
+
+            restoredBones.add(RestoredBoneTransform.capture(bone));
+            var transform = entry.getValue();
+
+            transform.position().ifPresent(position -> bone.updatePosition((float) position.x, (float) position.y, (float) position.z));
+            transform
+                .rotation()
+                .ifPresent(rotation -> bone.updateRotation(
+                    (float) Math.toRadians(-rotation.x),
+                    (float) Math.toRadians(-rotation.y),
+                    (float) Math.toRadians(rotation.z)
+                ));
+            transform.scale().ifPresent(scale -> bone.updateScale((float) scale.x, (float) scale.y, (float) scale.z));
+        }
+
+        return restoredBones;
+    }
+
+    private static void restoreBoneTransforms(List<RestoredBoneTransform> restoredBones) {
+        for (var i = restoredBones.size() - 1; i >= 0; i--) {
+            restoredBones.get(i).restore();
+        }
+    }
+
+    private record RestoredBoneTransform(
+        AzBone bone,
+        float posX,
+        float posY,
+        float posZ,
+        float rotX,
+        float rotY,
+        float rotZ,
+        float scaleX,
+        float scaleY,
+        float scaleZ
+    ) {
+
+        private static RestoredBoneTransform capture(AzBone bone) {
+            return new RestoredBoneTransform(
+                bone,
+                bone.getPosX(),
+                bone.getPosY(),
+                bone.getPosZ(),
+                bone.getRotX(),
+                bone.getRotY(),
+                bone.getRotZ(),
+                bone.getScaleX(),
+                bone.getScaleY(),
+                bone.getScaleZ()
+            );
+        }
+
+        private void restore() {
+            bone.updatePosition(posX, posY, posZ);
+            bone.updateRotation(rotX, rotY, rotZ);
+            bone.updateScale(scaleX, scaleY, scaleZ);
+        }
     }
 }

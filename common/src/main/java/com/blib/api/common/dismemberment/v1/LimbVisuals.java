@@ -7,6 +7,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -29,6 +30,7 @@ public record LimbVisuals(
     Vec3 renderScale,
     Vec3 renderPivot,
     boolean modelerTransform,
+    Map<String, LimbBoneTransform> boneTransforms,
     List<LimbPose> poses
 ) {
 
@@ -71,6 +73,31 @@ public record LimbVisuals(
         this(rootBoneName, companionBoneNames, excludedBoneNames, renderOffset, renderRotation, renderScale, renderPivot, modelerTransform, List.of());
     }
 
+    public LimbVisuals(
+        String rootBoneName,
+        List<String> companionBoneNames,
+        List<String> excludedBoneNames,
+        Vec3 renderOffset,
+        Vec3 renderRotation,
+        Vec3 renderScale,
+        Vec3 renderPivot,
+        boolean modelerTransform,
+        List<LimbPose> poses
+    ) {
+        this(
+            rootBoneName,
+            companionBoneNames,
+            excludedBoneNames,
+            renderOffset,
+            renderRotation,
+            renderScale,
+            renderPivot,
+            modelerTransform,
+            Map.of(),
+            poses
+        );
+    }
+
     public LimbVisuals {
         Objects.requireNonNull(rootBoneName, "LimbVisuals rootBoneName must not be null");
         Objects.requireNonNull(companionBoneNames, "LimbVisuals companionBoneNames must not be null");
@@ -79,6 +106,7 @@ public record LimbVisuals(
         Objects.requireNonNull(renderRotation, "LimbVisuals renderRotation must not be null");
         Objects.requireNonNull(renderScale, "LimbVisuals renderScale must not be null");
         Objects.requireNonNull(renderPivot, "LimbVisuals renderPivot must not be null");
+        Objects.requireNonNull(boneTransforms, "LimbVisuals boneTransforms must not be null");
         Objects.requireNonNull(poses, "LimbVisuals poses must not be null");
 
         if (rootBoneName.isBlank()) {
@@ -87,6 +115,7 @@ public record LimbVisuals(
 
         companionBoneNames = List.copyOf(companionBoneNames);
         excludedBoneNames = List.copyOf(excludedBoneNames);
+        boneTransforms = Map.copyOf(boneTransforms);
         poses = List.copyOf(poses);
 
         Set<String> poseIds = new HashSet<>();
@@ -145,6 +174,10 @@ public record LimbVisuals(
             Vec3.CODEC
                 .optionalFieldOf("render_pivot")
                 .forGetter(visuals -> visuals.modelerTransform() ? Optional.of(visuals.renderPivot()) : Optional.empty()),
+            Codec
+                .unboundedMap(Codec.STRING, LimbBoneTransform.CODEC)
+                .optionalFieldOf("bone_transforms", Map.of())
+                .forGetter(LimbVisuals::boneTransforms),
             LimbPose.CODEC.listOf().optionalFieldOf("poses", List.of()).forGetter(LimbVisuals::poses)
         )
             .apply(
@@ -157,6 +190,7 @@ public record LimbVisuals(
                     renderRotation,
                     renderScale,
                     renderPivot,
+                    boneTransforms,
                     poses
                 ) -> new LimbVisuals(
                     rootBoneName,
@@ -167,6 +201,7 @@ public record LimbVisuals(
                     renderScale,
                     renderPivot.orElse(DEFAULT_PIVOT),
                     renderPivot.isPresent(),
+                    boneTransforms,
                     poses
                 )
             )

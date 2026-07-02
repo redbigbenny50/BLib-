@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import com.blib.api.common.dismemberment.v1.LimbPose;
+import com.blib.api.common.dismemberment.v1.LimbBoneTransform;
 import com.blib.api.common.dismemberment.v1.LimbVisuals;
 import com.blib.api.common.registry.v1.BLibHolder;
 
@@ -161,6 +162,8 @@ public abstract class LimbVisualsDataProvider implements DataProvider {
 
         private boolean modelerTransform;
 
+        private Map<String, LimbBoneTransform> boneTransforms = Map.of();
+
         private final List<LimbPose> poses = new ArrayList<>();
 
         private VisualBuilder(String rootBoneName) {
@@ -219,6 +222,18 @@ public abstract class LimbVisualsDataProvider implements DataProvider {
             return this;
         }
 
+        public VisualBuilder boneTransform(String boneName, LimbBoneTransform transform) {
+            var next = new LinkedHashMap<>(boneTransforms);
+            next.put(boneName, transform);
+            boneTransforms = Map.copyOf(next);
+            return this;
+        }
+
+        public VisualBuilder boneTransforms(Map<String, LimbBoneTransform> transforms) {
+            boneTransforms = Map.copyOf(transforms);
+            return this;
+        }
+
         public VisualBuilder poses(List<LimbPose> poses) {
             this.poses.clear();
             this.poses.addAll(poses);
@@ -235,6 +250,7 @@ public abstract class LimbVisualsDataProvider implements DataProvider {
                 renderScale,
                 renderPivot,
                 modelerTransform,
+                boneTransforms,
                 Collections.unmodifiableList(new ArrayList<>(poses))
             );
         }

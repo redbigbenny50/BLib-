@@ -12,6 +12,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
@@ -201,6 +202,8 @@ public record LimbDefinition(
 
         private boolean modelerTransform = false;
 
+        private Map<String, LimbBoneTransform> boneTransforms = Map.of();
+
         private final List<LimbPose> poses = new ArrayList<>();
 
         private Function<LivingEntity, Vec3> spawnOffsetProvider = SpawnFunctionRegistry.DEFAULT_PROVIDER;
@@ -296,6 +299,11 @@ public record LimbDefinition(
             return this;
         }
 
+        public Builder boneTransforms(Map<String, LimbBoneTransform> boneTransforms) {
+            this.boneTransforms = Map.copyOf(Objects.requireNonNull(boneTransforms, "boneTransforms"));
+            return this;
+        }
+
         public Builder fatal() {
             this.fatal = true;
             return this;
@@ -323,6 +331,7 @@ public record LimbDefinition(
                 renderScale,
                 renderPivot,
                 modelerTransform,
+                boneTransforms,
                 poses
             );
 
