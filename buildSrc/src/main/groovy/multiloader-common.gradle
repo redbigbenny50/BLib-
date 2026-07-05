@@ -137,9 +137,9 @@ publishing {
             name = project.mod_id
             url = uri(project.maven_url)
 
-            credentials {
-                username = System.getenv("AVP_MAVEN_USERNAME")
-                password = System.getenv("AVP_MAVEN_PASSWORD")
+            credentials(PasswordCredentials) {
+                username = findProperty("avpMavenUsername")
+                password = findProperty("avpMavenPassword")
             }
 
             authentication {
