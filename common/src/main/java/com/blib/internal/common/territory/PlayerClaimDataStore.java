@@ -1,5 +1,6 @@
 package com.blib.internal.common.territory;
 
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntArrayTag;
@@ -8,7 +9,6 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.core.UUIDUtil;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -142,7 +142,11 @@ public class PlayerClaimDataStore implements DataStore {
             var level = server.getLevel(dimension);
 
             if (level != null) {
-                BLibTerritoryManager.INSTANCE.addClaim(level, new ChunkPos(key.x(), key.z()), BLibPlayerClaimManager.playerClaimId(entry.getValue()));
+                BLibTerritoryManager.INSTANCE.addClaim(
+                    level,
+                    new ChunkPos(key.x(), key.z()),
+                    BLibPlayerClaimManager.playerClaimId(entry.getValue())
+                );
             }
         }
     }

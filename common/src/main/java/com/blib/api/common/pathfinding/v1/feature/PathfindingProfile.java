@@ -8,6 +8,7 @@ import java.util.Optional;
  * Named feature presets exposed to tooling. A custom flag set is represented by a null profile on the navigator.
  */
 public enum PathfindingProfile {
+
     BASIC_GROUND("Basic Ground", PathfindingFeatures.BASIC_GROUND),
     FLAT_ONLY("Flat Only", PathfindingFeatures.FLAT_ONLY),
     STAIRS_ONLY("Stairs Only", PathfindingFeatures.STAIRS_ONLY),

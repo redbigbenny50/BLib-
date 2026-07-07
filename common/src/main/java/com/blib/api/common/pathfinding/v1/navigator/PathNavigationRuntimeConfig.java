@@ -40,5 +40,6 @@ public interface PathNavigationRuntimeConfig {
 
     void setExcludedTerrains(@Nullable Set<TerrainType> excludedTerrains);
 
-    @Nullable Set<TerrainType> getExcludedTerrains();
+    @Nullable
+    Set<TerrainType> getExcludedTerrains();
 }

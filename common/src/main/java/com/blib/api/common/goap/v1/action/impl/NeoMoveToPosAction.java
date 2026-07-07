@@ -1,10 +1,9 @@
 package com.blib.api.common.goap.v1.action.impl;
 
-import com.just.ai.goap.action.Action;
 import com.just.ai.goap.StateKey;
+import com.just.ai.goap.action.Action;
 import com.just.ai.goap.state.Blackboard;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.phys.Vec3;

@@ -1,7 +1,7 @@
 package com.blib.mod.common.command;
 
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -39,14 +39,18 @@ public final class BLibPlayerClaimCommands {
                         Commands.literal("add")
                             .then(
                                 Commands.argument("player", EntityArgument.player())
-                                    .executes(ctx -> addAlly(ctx.getSource().getPlayerOrException(), EntityArgument.getPlayer(ctx, "player")))
+                                    .executes(
+                                        ctx -> addAlly(ctx.getSource().getPlayerOrException(), EntityArgument.getPlayer(ctx, "player"))
+                                    )
                             )
                     )
                     .then(
                         Commands.literal("remove")
                             .then(
                                 Commands.argument("player", EntityArgument.player())
-                                    .executes(ctx -> removeAlly(ctx.getSource().getPlayerOrException(), EntityArgument.getPlayer(ctx, "player")))
+                                    .executes(
+                                        ctx -> removeAlly(ctx.getSource().getPlayerOrException(), EntityArgument.getPlayer(ctx, "player"))
+                                    )
                             )
                     )
             )
@@ -120,7 +124,9 @@ public final class BLibPlayerClaimCommands {
         player.getInventory().clearOrCountMatchingItems(stack -> stack.is(Items.DIAMOND), cost, player.inventoryMenu.getCraftSlots());
         BLib.MOD.territory().addPurchasedPlayerClaimSlot(server, player.getUUID());
         player.sendSystemMessage(
-            Component.literal("Bought one claim slot. Max claims: " + BLib.MOD.territory().getMaxPlayerClaims(server, player.getUUID()) + ".")
+            Component.literal(
+                "Bought one claim slot. Max claims: " + BLib.MOD.territory().getMaxPlayerClaims(server, player.getUUID()) + "."
+            )
                 .withStyle(ChatFormatting.GREEN)
         );
         return 1;
@@ -135,7 +141,9 @@ public final class BLibPlayerClaimCommands {
 
         player.sendSystemMessage(Component.literal("Claims: " + claimed + "/" + max).withStyle(ChatFormatting.YELLOW));
         player.sendSystemMessage(
-            Component.literal("Next slot cost: " + BLib.MOD.territory().getNextPlayerClaimSlotCost(level.getServer(), player.getUUID()) + " diamonds.")
+            Component.literal(
+                "Next slot cost: " + BLib.MOD.territory().getNextPlayerClaimSlotCost(level.getServer(), player.getUUID()) + " diamonds."
+            )
                 .withStyle(ChatFormatting.YELLOW)
         );
         player.sendSystemMessage(
@@ -194,7 +202,8 @@ public final class BLibPlayerClaimCommands {
         );
         if (changed) {
             ally.sendSystemMessage(
-                Component.literal(owner.getGameProfile().getName() + " removed your access to their claims.").withStyle(ChatFormatting.YELLOW)
+                Component.literal(owner.getGameProfile().getName() + " removed your access to their claims.")
+                    .withStyle(ChatFormatting.YELLOW)
             );
         }
         return changed ? 1 : 0;

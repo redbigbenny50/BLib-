@@ -44,10 +44,6 @@ public final class PathNodePool {
     }
 
     private static long packPosition(int x, int y, int z, int terrainTypeOrdinal, int postureOrdinal) {
-        return ((long) postureOrdinal & 0x3L) << 61
-            | ((long) terrainTypeOrdinal & 0x7L) << 58
-            | ((long) x & 0x7FFFFL) << 39
-            | ((long) y & 0xFFFL) << 27
-            | ((long) z & 0x7FFFFFFL);
+        return ((long) postureOrdinal & 0x3L) << 61 | ((long) terrainTypeOrdinal & 0x7L) << 58 | ((long) x & 0x7FFFFL) << 39 | ((long) y & 0xFFFL) << 27 | ((long) z & 0x7FFFFFFL);
     }
 }

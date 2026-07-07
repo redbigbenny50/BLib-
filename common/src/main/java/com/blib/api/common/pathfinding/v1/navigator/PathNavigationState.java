@@ -24,25 +24,32 @@ public interface PathNavigationState {
 
     long getLastPathComputeNanos();
 
-    @Nullable PathSearchSnapshot getLastSearchSnapshot();
+    @Nullable
+    PathSearchSnapshot getLastSearchSnapshot();
 
-    @Nullable PathNode getCurrentNode();
+    @Nullable
+    PathNode getCurrentNode();
 
-    @Nullable BlockPos getCurrentTargetPos();
+    @Nullable
+    BlockPos getCurrentTargetPos();
 
-    @Nullable Vec3 getCurrentTargetCenter();
+    @Nullable
+    Vec3 getCurrentTargetCenter();
 
     boolean isNavigating();
 
     boolean isDone();
 
-    @Nullable BLibPath getCurrentPath();
+    @Nullable
+    BLibPath getCurrentPath();
 
-    @Nullable TerrainType getCurrentTerrain();
+    @Nullable
+    TerrainType getCurrentTerrain();
 
     boolean canOpenDoors();
 
-    @Nullable BlockPos getTargetPos();
+    @Nullable
+    BlockPos getTargetPos();
 
     int getConsecutiveFailures();
 

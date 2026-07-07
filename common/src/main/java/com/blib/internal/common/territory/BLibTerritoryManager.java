@@ -390,7 +390,9 @@ public class BLibTerritoryManager {
                 .toList();
 
             if (!visibleFactions.isEmpty()) {
-                entries.add(new S2CChunkClaimsSyncPayload.Entry(pos.x, pos.z, visibleFactions, playerOwnerName(level, pos, visibleFactions)));
+                entries.add(
+                    new S2CChunkClaimsSyncPayload.Entry(pos.x, pos.z, visibleFactions, playerOwnerName(level, pos, visibleFactions))
+                );
             }
         }
 

@@ -1621,7 +1621,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         );
     }
 
-    private record AxisSweep(double entryTime, double exitTime) {
+    private record AxisSweep(
+        double entryTime,
+        double exitTime
+    ) {
 
         private static final AxisSweep ALWAYS_OVERLAPPING = new AxisSweep(
             Double.NEGATIVE_INFINITY,
@@ -1645,7 +1648,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         boolean requireNominalSupport
     ) {}
 
-    private record StepDownLandingScan(int y, int type) {
+    private record StepDownLandingScan(
+        int y,
+        int type
+    ) {
 
         private static StepDownLandingScan noLanding() {
             return new StepDownLandingScan(Integer.MIN_VALUE, STEP_DOWN_SCAN_NO_LANDING);
@@ -1664,7 +1670,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         }
     }
 
-    private record GroundCandidate(@Nullable PathNode node, boolean blocksFurtherStepDown) {
+    private record GroundCandidate(
+        @Nullable PathNode node,
+        boolean blocksFurtherStepDown
+    ) {
 
         private static GroundCandidate accepted(PathNode node) {
             return new GroundCandidate(node, false);
@@ -1679,7 +1688,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         }
     }
 
-    private record BlockBreakCandidate(PathBlockBreakPlan plan, float costMalus) {}
+    private record BlockBreakCandidate(
+        PathBlockBreakPlan plan,
+        float costMalus
+    ) {}
 
     private boolean isEntityBoxClear(double centerX, double feetY, double centerZ, double entityWidth, double entityHeight) {
         return isEntityBoxClear(centerX, feetY, centerZ, entityWidth, entityHeight, false);

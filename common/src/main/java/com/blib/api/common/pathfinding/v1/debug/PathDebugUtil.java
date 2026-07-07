@@ -14,9 +14,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import com.blib.api.common.pathfinding.v1.navigator.PathNavigatorApi;
-import com.blib.api.common.pathfinding.v1.navigator.PathNavigationState;
 import com.blib.api.common.pathfinding.v1.breaking.PathBlockBreakExecutor;
+import com.blib.api.common.pathfinding.v1.navigator.PathNavigationState;
+import com.blib.api.common.pathfinding.v1.navigator.PathNavigatorApi;
 import com.blib.api.common.pathfinding.v1.node.PathNode;
 import com.blib.api.common.pathfinding.v1.path.BLibPath;
 import com.blib.mod.BLib;
@@ -208,11 +208,13 @@ public final class PathDebugUtil {
         var lastNode = path.getNode(path.getNodeCount() - 1);
         var start = new PathDebugBlockPos(firstNode.getX(), firstNode.getY(), firstNode.getZ());
         var targetPos = state.getTargetPos();
-        var requestedTarget = targetPos != null ? PathDebugBlockPos.of(targetPos) : new PathDebugBlockPos(
-            lastNode.getX(),
-            lastNode.getY(),
-            lastNode.getZ()
-        );
+        var requestedTarget = targetPos != null
+            ? PathDebugBlockPos.of(targetPos)
+            : new PathDebugBlockPos(
+                lastNode.getX(),
+                lastNode.getY(),
+                lastNode.getZ()
+            );
         var resolvedGoal = new PathDebugBlockPos(lastNode.getX(), lastNode.getY(), lastNode.getZ());
         var reached = path.isReached();
         var diagnostics = new PathSearchDebugData(

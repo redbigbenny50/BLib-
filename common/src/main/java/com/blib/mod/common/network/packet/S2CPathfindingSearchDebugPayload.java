@@ -9,9 +9,9 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
+import com.blib.api.common.pathfinding.v1.debug.DebugNodeEntry;
 import com.blib.api.common.pathfinding.v1.debug.PathAabbDebugEntry;
 import com.blib.api.common.pathfinding.v1.debug.PathBlockDebugEntry;
-import com.blib.api.common.pathfinding.v1.debug.DebugNodeEntry;
 import com.blib.api.common.pathfinding.v1.debug.PathEdgeDebugEntry;
 import com.blib.api.common.pathfinding.v1.debug.PathOpenNodeDebugEntry;
 import com.blib.api.common.pathfinding.v1.debug.PathSearchDebugData;

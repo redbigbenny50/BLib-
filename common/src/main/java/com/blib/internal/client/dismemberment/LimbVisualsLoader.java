@@ -9,8 +9,8 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -45,8 +45,15 @@ public final class LimbVisualsLoader extends SimplePreparableReloadListener<Map<
 
     private static final String DIRECTORY = "blib_limb_visuals";
 
-    /** Per-file shape: {@code { "replace": false, "parent": "<template_id>", "visuals": { "<limb_id>": {LimbVisuals...}, ... } }}. */
-    private record DecodedFile(Optional<ResourceLocation> parent, Map<ResourceLocation, LimbVisuals> visuals, boolean replace) {
+    /**
+     * Per-file shape: {@code { "replace": false, "parent": "<template_id>", "visuals": { "<limb_id>": {LimbVisuals...},
+     * ... } }}.
+     */
+    private record DecodedFile(
+        Optional<ResourceLocation> parent,
+        Map<ResourceLocation, LimbVisuals> visuals,
+        boolean replace
+    ) {
 
         static final Codec<DecodedFile> CODEC = RecordCodecBuilder.create(
             instance -> instance.group(
@@ -60,7 +67,12 @@ public final class LimbVisualsLoader extends SimplePreparableReloadListener<Map<
         );
     }
 
-    record File(Optional<ResourceLocation> parent, boolean parentSpecified, Map<ResourceLocation, LimbVisuals> visuals, boolean replace) {
+    record File(
+        Optional<ResourceLocation> parent,
+        boolean parentSpecified,
+        Map<ResourceLocation, LimbVisuals> visuals,
+        boolean replace
+    ) {
 
         File {
             visuals = Collections.unmodifiableMap(new LinkedHashMap<>(visuals));

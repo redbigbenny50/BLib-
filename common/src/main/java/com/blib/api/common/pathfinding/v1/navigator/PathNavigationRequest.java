@@ -1,8 +1,8 @@
 package com.blib.api.common.pathfinding.v1.navigator;
 
-import java.util.concurrent.CompletableFuture;
-
 import com.just.core.functional.result.Result;
+
+import java.util.concurrent.CompletableFuture;
 
 import com.blib.api.common.pathfinding.v1.feature.PathfindingFeatures;
 import com.blib.api.common.pathfinding.v1.path.BLibPath;

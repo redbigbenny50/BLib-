@@ -209,11 +209,13 @@ public class LimbEntityModelRenderer extends AzEntityModelRenderer<DismemberedLi
             transform.position().ifPresent(position -> bone.updatePosition((float) position.x, (float) position.y, (float) position.z));
             transform
                 .rotation()
-                .ifPresent(rotation -> bone.updateRotation(
-                    (float) Math.toRadians(-rotation.x),
-                    (float) Math.toRadians(-rotation.y),
-                    (float) Math.toRadians(rotation.z)
-                ));
+                .ifPresent(
+                    rotation -> bone.updateRotation(
+                        (float) Math.toRadians(-rotation.x),
+                        (float) Math.toRadians(-rotation.y),
+                        (float) Math.toRadians(rotation.z)
+                    )
+                );
             transform.scale().ifPresent(scale -> bone.updateScale((float) scale.x, (float) scale.y, (float) scale.z));
         }
 

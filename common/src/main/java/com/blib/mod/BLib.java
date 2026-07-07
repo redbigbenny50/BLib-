@@ -40,8 +40,8 @@ import com.blib.internal.common.faction.BLibFactionManager;
 import com.blib.internal.common.property.BLibPropertyContainerSaveHandler;
 import com.blib.internal.common.reputation.BLibReputationManager;
 import com.blib.internal.common.storage.BLibDataStoreManager;
-import com.blib.internal.common.territory.BLibPlayerClaimManager;
 import com.blib.internal.common.territory.BLibPlayerClaimContestNotifier;
+import com.blib.internal.common.territory.BLibPlayerClaimManager;
 import com.blib.internal.common.territory.BLibTerritoryContestManager;
 import com.blib.internal.common.territory.BLibTerritoryManager;
 import com.blib.mod.common.gameplay.goap.GOAPDebugTracker;
@@ -237,9 +237,11 @@ public class BLib {
                 if (kind == BLibFactionDataChangedEvent.Kind.CLAIM_VISIBILITY) {
                     BLibTerritoryManager.INSTANCE.syncClaimsForFactionToAllPlayers(factionId);
                 }
-                if (kind == BLibFactionDataChangedEvent.Kind.NAME
-                    || kind == BLibFactionDataChangedEvent.Kind.COLOR
-                    || kind == BLibFactionDataChangedEvent.Kind.CLAIM_MAP_STYLE) {
+                if (
+                    kind == BLibFactionDataChangedEvent.Kind.NAME
+                        || kind == BLibFactionDataChangedEvent.Kind.COLOR
+                        || kind == BLibFactionDataChangedEvent.Kind.CLAIM_MAP_STYLE
+                ) {
                     BLibFactionManager.INSTANCE.syncFactionMetadataToAllClients(factionId);
                 }
             });

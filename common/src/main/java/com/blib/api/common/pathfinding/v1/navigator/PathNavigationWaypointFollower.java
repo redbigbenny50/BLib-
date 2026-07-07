@@ -25,7 +25,13 @@ final class PathNavigationWaypointFollower {
 
     private static final double WIDE_FOOTPRINT_REACH_XZ = 0.45;
 
-    private static final double WAYPOINT_REACH_Y = 0.45;
+    // Path nodes carry an integer Y, but partial-height support blocks let a mob rest below that integer floor: a mob
+    // standing on a bottom slab settles exactly 0.5 below its own node's Y. The vertical reach tolerance therefore has
+    // to exceed a half block, or the follower can never register a slab waypoint as reached and the mob spins in place
+    // trying to close a purely vertical gap (this is most visible at slab<->full-block transitions, where the same-Y
+    // skip-ahead heuristic is disabled and cannot mask the miss). Kept below a full block (1.0) so genuine full-height
+    // steps still require the mob to actually climb before the waypoint counts as reached.
+    private static final double WAYPOINT_REACH_Y = 0.6;
 
     private static final double DESCENDING_STAIR_EDGE_REACH_PROGRESS = 0.5;
 
@@ -60,13 +66,13 @@ final class PathNavigationWaypointFollower {
     private final Set<AnyAngleSmoothingKey> anyAngleSmoothingFailures = new HashSet<>();
 
     PathNavigationWaypointFollower(
-        PathNavigatorConfig config,
-        PathNavigationStateComponent state,
-        PathNavigationSpaceQuery spaceQuery,
-        Supplier<PathfindingFeatures> activeFeaturesSupplier,
-        Consumer<PathfindingFeature> featureUsageConsumer,
-        Runnable progressMarker,
-        BiConsumer<@Nullable TerrainType, TerrainType> transitionConsumer
+            PathNavigatorConfig config,
+            PathNavigationStateComponent state,
+            PathNavigationSpaceQuery spaceQuery,
+            Supplier<PathfindingFeatures> activeFeaturesSupplier,
+            Consumer<PathfindingFeature> featureUsageConsumer,
+            Runnable progressMarker,
+            BiConsumer<@Nullable TerrainType, TerrainType> transitionConsumer
     ) {
         this.config = config;
         this.state = state;
@@ -77,7 +83,8 @@ final class PathNavigationWaypointFollower {
         this.transitionConsumer = transitionConsumer;
     }
 
-    @Nullable Vec3 resolveCurrentTargetCenter() {
+    @Nullable
+    Vec3 resolveCurrentTargetCenter() {
         var path = currentPath();
 
         if (path == null || path.isDone()) {
@@ -88,11 +95,11 @@ final class PathNavigationWaypointFollower {
     }
 
     void advanceWaypoints(
-        double entityX,
-        double entityY,
-        double entityZ,
-        float entityWidth,
-        float entityHeight
+            double entityX,
+            double entityY,
+            double entityZ,
+            float entityWidth,
+            float entityHeight
     ) {
         var path = currentPath();
 
@@ -115,9 +122,9 @@ final class PathNavigationWaypointFollower {
 
             var withinVerticalReach = awaitingDropEntry ? entityY <= waypointCenter.y + reachY : dy <= reachY;
             if (
-                !awaitingDropEntry
-                    && !withinVerticalReach
-                    && isDescendingSteppedFootprintWaypointWithinReach(path.getCurrentNodeIndex(), entityY, reachY)
+                    !awaitingDropEntry
+                            && !withinVerticalReach
+                            && isDescendingSteppedFootprintWaypointWithinReach(path.getCurrentNodeIndex(), entityY, reachY)
             ) {
                 withinVerticalReach = true;
                 markFeatureUsed(PathfindingFeature.STEPPED_FOOTPRINT_SUPPORT);
@@ -125,12 +132,12 @@ final class PathNavigationWaypointFollower {
 
             var withinReach = dx <= activeReachXZ && withinVerticalReach && dz <= activeReachXZ;
             var enteredDropShaft = awaitingDropEntry
-                && entityY < waypointCenter.y - reachY
-                && dx <= entityWidth
-                && dz <= entityWidth;
+                    && entityY < waypointCenter.y - reachY
+                    && dx <= entityWidth
+                    && dz <= entityWidth;
             var descendingStairEdgeReached = !withinReach
-                && !awaitingDropEntry
-                && isDescendingStairEdgeWaypointReached(
+                    && !awaitingDropEntry
+                    && isDescendingStairEdgeWaypointReached(
                     path.getCurrentNodeIndex(),
                     entityX,
                     entityY,
@@ -138,11 +145,11 @@ final class PathNavigationWaypointFollower {
                     entityWidth,
                     entityHeight,
                     reachY
-                );
+            );
             var skippedAhead = !withinReach
-                && !descendingStairEdgeReached
-                && activePathfindingFeatures().pathSkipAhead()
-                && shouldSkipToNextNode(entityX, entityY, entityZ, entityWidth, entityHeight);
+                    && !descendingStairEdgeReached
+                    && activePathfindingFeatures().pathSkipAhead()
+                    && shouldSkipToNextNode(entityX, entityY, entityZ, entityWidth, entityHeight);
 
             if (skippedAhead) {
                 markFeatureUsed(PathfindingFeature.PATH_SKIP_AHEAD);
@@ -193,7 +200,25 @@ final class PathNavigationWaypointFollower {
             return new Vec3(node.getDropEntryX(), node.getDropEntryY(), node.getDropEntryZ());
         }
 
-        return nodeTargetCenter(node, entityWidth, entityHeight);
+        var center = nodeTargetCenter(node, entityWidth, entityHeight);
+
+        // Ground nodes store an integer feet Y, but a partial-height support (slab, closed trapdoor, ...) lets the
+        // entity settle below it. This target center drives the vertical-reach test and the move-control wanted
+        // position, so anchoring its Y to the real surface is what keeps a mob on a partial block from being unable
+        // to "reach" its own waypoint (and spinning in place while the move controller aims at a point overhead).
+        // Only the current-node target is adjusted; path geometry and smoothing keep using the integer node Y via
+        // nodeTargetCenter, so step/drop direction detection is unaffected.
+        if (node.getTerrainType() != TerrainType.GROUND) {
+            return center;
+        }
+
+        var surfaceY = spaceQuery.groundSurfaceY(center.x, node.getY(), center.z, entityWidth);
+
+        if (surfaceY == center.y) {
+            return center;
+        }
+
+        return new Vec3(center.x, surfaceY, center.z);
     }
 
     Vec3 nodeTargetCenter(PathNode node, float entityWidth, float entityHeight) {
@@ -224,11 +249,11 @@ final class PathNavigationWaypointFollower {
     }
 
     private void smoothAnyAngleWaypoint(
-        double entityX,
-        double entityY,
-        double entityZ,
-        float entityWidth,
-        float entityHeight
+            double entityX,
+            double entityY,
+            double entityZ,
+            float entityWidth,
+            float entityHeight
     ) {
         var path = currentPath();
 
@@ -274,8 +299,8 @@ final class PathNavigationWaypointFollower {
         return switch (node.getTerrainType()) {
             case GROUND -> activeFeatures.anyAngleSmoothing() ? PathfindingFeature.ANY_ANGLE_SMOOTHING : null;
             case WATER -> activeFeatures.waterPathfinding() && activeFeatures.waterAnyAngleSmoothing()
-                ? PathfindingFeature.WATER_ANY_ANGLE_SMOOTHING
-                : null;
+                    ? PathfindingFeature.WATER_ANY_ANGLE_SMOOTHING
+                    : null;
         };
     }
 
@@ -303,16 +328,16 @@ final class PathNavigationWaypointFollower {
     }
 
     private int findAnyAngleSmoothingTargetIndex(
-        double entityX,
-        double entityY,
-        double entityZ,
-        float entityWidth,
-        float entityHeight
+            double entityX,
+            double entityY,
+            double entityZ,
+            float entityWidth,
+            float entityHeight
     ) {
         var currentIndex = currentPath().getCurrentNodeIndex();
         var maxIndex = Math.min(
-            currentPath().getNodeCount() - 1,
-            currentIndex + ANY_ANGLE_SMOOTHING_MAX_LOOKAHEAD_NODES
+                currentPath().getNodeCount() - 1,
+                currentIndex + ANY_ANGLE_SMOOTHING_MAX_LOOKAHEAD_NODES
         );
 
         for (var targetIndex = maxIndex; targetIndex > currentIndex; targetIndex--) {
@@ -324,15 +349,15 @@ final class PathNavigationWaypointFollower {
             var terrain = currentPath().getNode(currentIndex).getTerrainType();
 
             var cacheKey = anyAngleSmoothingKey(
-                currentIndex,
-                targetIndex,
-                entityX,
-                entityY,
-                entityZ,
-                targetCenter,
-                entityWidth,
-                entityHeight,
-                terrain
+                    currentIndex,
+                    targetIndex,
+                    entityX,
+                    entityY,
+                    entityZ,
+                    targetCenter,
+                    entityWidth,
+                    entityHeight,
+                    terrain
             );
 
             if (cacheKey != null && anyAngleSmoothingFailures.contains(cacheKey)) {
@@ -354,32 +379,32 @@ final class PathNavigationWaypointFollower {
     }
 
     private @Nullable AnyAngleSmoothingKey anyAngleSmoothingKey(
-        int currentIndex,
-        int targetIndex,
-        double entityX,
-        double entityY,
-        double entityZ,
-        Vec3 targetCenter,
-        float entityWidth,
-        float entityHeight,
-        TerrainType terrain
+            int currentIndex,
+            int targetIndex,
+            double entityX,
+            double entityY,
+            double entityZ,
+            Vec3 targetCenter,
+            float entityWidth,
+            float entityHeight,
+            TerrainType terrain
     ) {
         if (!activePathfindingFeatures().anyAngleSmoothingCache()) {
             return null;
         }
 
         return new AnyAngleSmoothingKey(
-            currentIndex,
-            targetIndex,
-            Double.doubleToLongBits(entityX),
-            Double.doubleToLongBits(entityY),
-            Double.doubleToLongBits(entityZ),
-            Double.doubleToLongBits(targetCenter.x),
-            Double.doubleToLongBits(targetCenter.y),
-            Double.doubleToLongBits(targetCenter.z),
-            Float.floatToIntBits(entityWidth),
-            Float.floatToIntBits(entityHeight),
-            terrain
+                currentIndex,
+                targetIndex,
+                Double.doubleToLongBits(entityX),
+                Double.doubleToLongBits(entityY),
+                Double.doubleToLongBits(entityZ),
+                Double.doubleToLongBits(targetCenter.x),
+                Double.doubleToLongBits(targetCenter.y),
+                Double.doubleToLongBits(targetCenter.z),
+                Float.floatToIntBits(entityWidth),
+                Float.floatToIntBits(entityHeight),
+                terrain
         );
     }
 
@@ -405,10 +430,10 @@ final class PathNavigationWaypointFollower {
             var node = currentPath().getNode(index);
 
             if (
-                node.hasDropEntryWaypoint()
-                    || node.getY() != y
-                    || node.getTerrainType() != TerrainType.GROUND
-                    || node.getPosture() != posture
+                    node.hasDropEntryWaypoint()
+                            || node.getY() != y
+                            || node.getTerrainType() != TerrainType.GROUND
+                            || node.getPosture() != posture
             ) {
                 return false;
             }
@@ -431,9 +456,9 @@ final class PathNavigationWaypointFollower {
             var node = currentPath().getNode(index);
 
             if (
-                node.hasDropEntryWaypoint()
-                    || node.getTerrainType() != TerrainType.WATER
-                    || node.getPosture() != posture
+                    node.hasDropEntryWaypoint()
+                            || node.getTerrainType() != TerrainType.WATER
+                            || node.getPosture() != posture
             ) {
                 return false;
             }
@@ -457,13 +482,13 @@ final class PathNavigationWaypointFollower {
     }
 
     private boolean canTraverseDirectly(
-        double entityX,
-        double entityY,
-        double entityZ,
-        Vec3 targetCenter,
-        float entityWidth,
-        float entityHeight,
-        TerrainType terrain
+            double entityX,
+            double entityY,
+            double entityZ,
+            Vec3 targetCenter,
+            float entityWidth,
+            float entityHeight,
+            TerrainType terrain
     ) {
         if (entityWidth <= 0.0f || entityHeight <= 0.0f) {
             return false;
@@ -478,16 +503,16 @@ final class PathNavigationWaypointFollower {
         for (var i = 1; i <= sampleCount; i++) {
             var progress = i / (double) sampleCount;
             var feetCenter = new Vec3(
-                entityX + dx * progress,
-                entityY + dy * progress,
-                entityZ + dz * progress
+                    entityX + dx * progress,
+                    entityY + dy * progress,
+                    entityZ + dz * progress
             );
             var allowLiquids = terrain == TerrainType.WATER;
 
             if (
-                !spaceQuery.isEntityBoxClear(feetCenter, entityWidth, entityHeight, allowLiquids)
-                    || (!allowLiquids && !spaceQuery.hasEntitySupport(feetCenter, entityWidth))
-                    || !spaceQuery.hasExpectedTerrain(feetCenter, entityWidth, terrain)
+                    !spaceQuery.isEntityBoxClear(feetCenter, entityWidth, entityHeight, allowLiquids)
+                            || (!allowLiquids && !spaceQuery.hasEntitySupport(feetCenter, entityWidth))
+                            || !spaceQuery.hasExpectedTerrain(feetCenter, entityWidth, terrain)
             ) {
                 return false;
             }
@@ -525,7 +550,7 @@ final class PathNavigationWaypointFollower {
         var node = currentPath().getNode(nodeIndex);
 
         return isDescendingStepEdge(previousNode, node)
-            && isDescendingStepYWithinReach(previousNode, node, entityY, reachY);
+                && isDescendingStepYWithinReach(previousNode, node, entityY, reachY);
     }
 
     private boolean usesSteppedFootprintSupport() {
@@ -533,19 +558,19 @@ final class PathNavigationWaypointFollower {
         var activeFeatures = activePathfindingFeatures();
 
         return activeFeatures.footprintClearance()
-            && activeFeatures.steppedFootprintSupport()
-            && evaluatorConfig.getEntityWidth() > 1
-            && evaluatorConfig.getMaxStepHeight() > 0;
+                && activeFeatures.steppedFootprintSupport()
+                && evaluatorConfig.getEntityWidth() > 1
+                && evaluatorConfig.getMaxStepHeight() > 0;
     }
 
     private boolean isDescendingStairEdgeWaypointReached(
-        int nodeIndex,
-        double entityX,
-        double entityY,
-        double entityZ,
-        float entityWidth,
-        float entityHeight,
-        double reachY
+            int nodeIndex,
+            double entityX,
+            double entityY,
+            double entityZ,
+            float entityWidth,
+            float entityHeight,
+            double reachY
     ) {
         if (!usesDescendingStairEdgeReach() || currentPath() == null || nodeIndex <= 0) {
             return false;
@@ -555,8 +580,8 @@ final class PathNavigationWaypointFollower {
         var node = currentPath().getNode(nodeIndex);
 
         if (
-            !isDescendingStepEdge(previousNode, node)
-                || !isDescendingStepYWithinReach(previousNode, node, entityY, reachY)
+                !isDescendingStepEdge(previousNode, node)
+                        || !isDescendingStepYWithinReach(previousNode, node, entityY, reachY)
         ) {
             return false;
         }
@@ -593,8 +618,8 @@ final class PathNavigationWaypointFollower {
         var activeFeatures = activePathfindingFeatures();
 
         return activeFeatures.descendingStairEdgeReach()
-            && activeFeatures.stepDown()
-            && config.getEvaluatorConfig().getMaxStepHeight() > 0;
+                && activeFeatures.stepDown()
+                && config.getEvaluatorConfig().getMaxStepHeight() > 0;
     }
 
     private boolean isDescendingStepEdge(PathNode previousNode, PathNode node) {
@@ -626,11 +651,11 @@ final class PathNavigationWaypointFollower {
     }
 
     private boolean shouldSkipToNextNode(
-        double entityX,
-        double entityY,
-        double entityZ,
-        float entityWidth,
-        float entityHeight
+            double entityX,
+            double entityY,
+            double entityZ,
+            float entityWidth,
+            float entityHeight
     ) {
         var nextIndex = currentPath().getCurrentNodeIndex() + 1;
 
@@ -722,10 +747,10 @@ final class PathNavigationWaypointFollower {
 
     private boolean isCurrentDropEntryWaypointPending(PathNode node) {
         return currentPath() != null
-            && !currentPath().isDone()
-            && node.hasDropEntryWaypoint()
-            && currentPath().getCurrentNodeIndex() == dropEntryNodeIndex
-            && !dropEntryReached;
+                && !currentPath().isDone()
+                && node.hasDropEntryWaypoint()
+                && currentPath().getCurrentNodeIndex() == dropEntryNodeIndex
+                && !dropEntryReached;
     }
 
     private @Nullable Vec3 shapeAwareNodeCenter(PathNode node, float entityWidth, float entityHeight) {
@@ -775,9 +800,9 @@ final class PathNavigationWaypointFollower {
         }
 
         candidates.sort(
-            Comparator.comparingDouble(WaypointCandidate::distanceSquared)
-                .thenComparingDouble(WaypointCandidate::localX)
-                .thenComparingDouble(WaypointCandidate::localZ)
+                Comparator.comparingDouble(WaypointCandidate::distanceSquared)
+                        .thenComparingDouble(WaypointCandidate::localX)
+                        .thenComparingDouble(WaypointCandidate::localZ)
         );
 
         return candidates;
@@ -828,8 +853,8 @@ final class PathNavigationWaypointFollower {
 
     private boolean samePosition(Vec3 left, Vec3 right) {
         return Math.abs(left.x - right.x) <= COLLISION_EPSILON
-            && Math.abs(left.y - right.y) <= COLLISION_EPSILON
-            && Math.abs(left.z - right.z) <= COLLISION_EPSILON;
+                && Math.abs(left.y - right.y) <= COLLISION_EPSILON
+                && Math.abs(left.z - right.z) <= COLLISION_EPSILON;
     }
 
     private PathfindingFeatures activePathfindingFeatures() {
@@ -853,22 +878,22 @@ final class PathNavigationWaypointFollower {
     }
 
     private record WaypointCandidate(
-        double localX,
-        double localZ,
-        double distanceSquared
+            double localX,
+            double localZ,
+            double distanceSquared
     ) {}
 
     private record AnyAngleSmoothingKey(
-        int currentIndex,
-        int targetIndex,
-        long entityX,
-        long entityY,
-        long entityZ,
-        long targetX,
-        long targetY,
-        long targetZ,
-        int entityWidth,
-        int entityHeight,
-        TerrainType terrain
+            int currentIndex,
+            int targetIndex,
+            long entityX,
+            long entityY,
+            long entityZ,
+            long targetX,
+            long targetY,
+            long targetZ,
+            int entityWidth,
+            int entityHeight,
+            TerrainType terrain
     ) {}
 }

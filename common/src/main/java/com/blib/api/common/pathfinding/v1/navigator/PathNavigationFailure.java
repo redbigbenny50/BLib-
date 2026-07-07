@@ -5,11 +5,7 @@ import net.minecraft.core.BlockPos;
 /**
  * Reason a path navigation request did not construct a usable path.
  */
-public sealed interface PathNavigationFailure permits
-    PathNavigationFailure.InFailureCooldown,
-    PathNavigationFailure.NoPathFound,
-    PathNavigationFailure.SearchFailed,
-    PathNavigationFailure.Superseded {
+public sealed interface PathNavigationFailure permits PathNavigationFailure.InFailureCooldown, PathNavigationFailure.NoPathFound, PathNavigationFailure.SearchFailed, PathNavigationFailure.Superseded {
 
     record InFailureCooldown(
         BlockPos entityPos,

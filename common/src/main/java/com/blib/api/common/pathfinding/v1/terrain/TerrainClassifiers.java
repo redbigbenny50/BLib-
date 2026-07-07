@@ -17,8 +17,8 @@ public final class TerrainClassifiers {
     public static final TerrainClassifier GROUND_ONLY = TerrainClassifiers::classifyGroundOnly;
 
     /**
-     * Classifies standable ground and water volumes. Water is returned only when ground classification fails, so shallow
-     * dry ground remains preferred over swimming.
+     * Classifies standable ground and water volumes. Water is returned only when ground classification fails, so
+     * shallow dry ground remains preferred over swimming.
      */
     public static final TerrainClassifier GROUND_AND_WATER = TerrainClassifiers::classifyGroundAndWater;
 

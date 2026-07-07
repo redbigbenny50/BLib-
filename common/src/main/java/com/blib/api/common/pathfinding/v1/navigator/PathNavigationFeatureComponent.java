@@ -76,7 +76,8 @@ final class PathNavigationFeatureComponent implements PathNavigationFeatureContr
         this.activePathfindingFeatures = pathfindingFeatures;
     }
 
-    @Nullable PathfindingFeatures activePathfindingFeaturesOverride() {
+    @Nullable
+    PathfindingFeatures activePathfindingFeaturesOverride() {
         return activePathfindingFeatures;
     }
 

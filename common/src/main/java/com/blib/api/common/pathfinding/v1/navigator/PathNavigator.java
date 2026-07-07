@@ -18,8 +18,7 @@ import com.blib.api.common.pathfinding.v1.search.SegmentedPathPlanner;
  * <p>
  * The consuming code calls {@link #tick(double, double, double, float, float)} each tick with the entity's exact
  * position and bounding box dimensions. The navigator advances along the path and exposes the next waypoint through
- * {@link #getState()}. The calling code is responsible for actually moving the entity toward the
- * waypoint.
+ * {@link #getState()}. The calling code is responsible for actually moving the entity toward the waypoint.
  * </p>
  */
 public final class PathNavigator implements PathNavigatorApi {
@@ -128,8 +127,8 @@ public final class PathNavigator implements PathNavigatorApi {
     }
 
     /**
-     * Creates a navigation request for the target position. The request begins only when {@link PathNavigationRequest#start()}
-     * is called.
+     * Creates a navigation request for the target position. The request begins only when
+     * {@link PathNavigationRequest#start()} is called.
      */
     public PathNavigationRequest navigateTo(BlockPos entityPos, BlockPos target) {
         return new PathNavigationRequestComponent(planning, entityPos, target, null);

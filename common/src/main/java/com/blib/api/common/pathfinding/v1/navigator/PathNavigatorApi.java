@@ -3,9 +3,7 @@ package com.blib.api.common.pathfinding.v1.navigator;
 /**
  * Public control and inspection contract for BLib path navigation.
  */
-public interface PathNavigatorApi extends
-    PathNavigationCommands,
-    PathNavigationProgressSink {
+public interface PathNavigatorApi extends PathNavigationCommands, PathNavigationProgressSink {
 
     /**
      * Returns the read-only state view for this navigator.

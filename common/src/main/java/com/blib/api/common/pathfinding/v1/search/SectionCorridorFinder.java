@@ -16,7 +16,6 @@ import java.util.function.Supplier;
 import com.blib.api.common.pathfinding.v1.cache.TerrainClassificationCache;
 import com.blib.api.common.pathfinding.v1.evaluator.TerrainEvaluator;
 import com.blib.api.common.pathfinding.v1.node.PathNode;
-import com.blib.api.common.pathfinding.v1.terrain.TerrainType;
 
 /**
  * Region-aware section-level A* search for computing a corridor of 16x16x16 sections between two positions. Each A*
@@ -146,16 +145,18 @@ public final class SectionCorridorFinder {
                         var nz = current.z() + dz;
 
                         // Check if current region can exit through the shared face.
-                        if (!classificationCache.isRegionConnected(
-                            level,
-                            current.x(),
-                            current.y(),
-                            current.z(),
-                            current.regionRoot(),
-                            dx,
-                            dy,
-                            dz
-                        )) {
+                        if (
+                            !classificationCache.isRegionConnected(
+                                level,
+                                current.x(),
+                                current.y(),
+                                current.z(),
+                                current.regionRoot(),
+                                dx,
+                                dy,
+                                dz
+                            )
+                        ) {
                             continue;
                         }
 

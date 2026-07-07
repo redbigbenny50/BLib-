@@ -1,8 +1,9 @@
 package com.blib.mod.common.registry.init;
 
-import com.blib.internal.mixin.MixinGameRulesBooleanValueAccessor;
-import com.blib.internal.mixin.MixinGameRulesAccessor;
 import net.minecraft.world.level.GameRules;
+
+import com.blib.internal.mixin.MixinGameRulesAccessor;
+import com.blib.internal.mixin.MixinGameRulesBooleanValueAccessor;
 
 public final class BLibGameRules {
 

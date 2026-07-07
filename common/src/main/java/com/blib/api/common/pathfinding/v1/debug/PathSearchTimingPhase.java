@@ -6,6 +6,7 @@ import com.just.codec.stream.StreamCodec;
  * Timed phase within one path search. These are debug-only timings intended to explain search cost shape.
  */
 public enum PathSearchTimingPhase {
+
     TOTAL_SEARCH,
     NODE_RESOLUTION,
     SEARCH_SETUP,

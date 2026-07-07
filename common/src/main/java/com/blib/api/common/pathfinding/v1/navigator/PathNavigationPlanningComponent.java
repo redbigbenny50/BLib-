@@ -1,5 +1,6 @@
 package com.blib.api.common.pathfinding.v1.navigator;
 
+import com.just.core.functional.result.Result;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.LevelReader;
 import org.jetbrains.annotations.Nullable;
@@ -7,10 +8,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletableFuture;
-
-import com.just.core.functional.result.Result;
+import java.util.concurrent.CompletionException;
 
 import com.blib.api.common.pathfinding.v1.feature.PathfindingFeature;
 import com.blib.api.common.pathfinding.v1.feature.PathfindingFeatures;
@@ -162,12 +161,14 @@ final class PathNavigationPlanningComponent {
         var pendingResult = new CompletableFuture<Result<BLibPath, PathNavigationFailure>>();
         var pendingPath = pathFinder.findPathAsync(level, entityPos, searchTarget);
         state.enterPlanning(request, pendingPath, pendingResult, asyncStartNanos, activePath);
-        pendingPath.whenComplete((path, throwable) -> completeAsyncConstructionResult(
-            pendingResult,
-            request,
-            path,
-            throwable
-        ));
+        pendingPath.whenComplete(
+            (path, throwable) -> completeAsyncConstructionResult(
+                pendingResult,
+                request,
+                path,
+                throwable
+            )
+        );
 
         return pendingResult;
     }
@@ -482,7 +483,9 @@ final class PathNavigationPlanningComponent {
             return;
         }
 
-        if (throwable instanceof CompletionException completionException && completionException.getCause() instanceof CancellationException) {
+        if (
+            throwable instanceof CompletionException completionException && completionException.getCause() instanceof CancellationException
+        ) {
             resultFuture.complete(Result.err(new PathNavigationFailure.Superseded()));
             return;
         }
@@ -491,23 +494,31 @@ final class PathNavigationPlanningComponent {
             var cause = throwable instanceof CompletionException completionException && completionException.getCause() != null
                 ? completionException.getCause()
                 : throwable;
-            resultFuture.complete(Result.err(new PathNavigationFailure.SearchFailed(
-                request.entityStart(),
-                request.rawTarget(),
-                request.searchTarget(),
-                cause
-            )));
+            resultFuture.complete(
+                Result.err(
+                    new PathNavigationFailure.SearchFailed(
+                        request.entityStart(),
+                        request.rawTarget(),
+                        request.searchTarget(),
+                        cause
+                    )
+                )
+            );
             return;
         }
 
         if (isUsableAsyncPath(path)) {
             resultFuture.complete(Result.ok(path));
         } else {
-            resultFuture.complete(Result.err(new PathNavigationFailure.NoPathFound(
-                request.entityStart(),
-                request.rawTarget(),
-                request.searchTarget()
-            )));
+            resultFuture.complete(
+                Result.err(
+                    new PathNavigationFailure.NoPathFound(
+                        request.entityStart(),
+                        request.rawTarget(),
+                        request.searchTarget()
+                    )
+                )
+            );
         }
     }
 

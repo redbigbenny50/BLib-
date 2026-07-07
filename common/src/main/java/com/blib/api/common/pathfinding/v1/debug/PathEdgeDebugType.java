@@ -6,6 +6,7 @@ import com.just.codec.stream.StreamCodec;
  * Movement category attempted while expanding a path node.
  */
 public enum PathEdgeDebugType {
+
     SAME_LEVEL,
     STEP_UP,
     STEP_DOWN,

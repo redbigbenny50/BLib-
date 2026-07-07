@@ -5,8 +5,8 @@ import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.LinkedHashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 
@@ -128,14 +128,16 @@ public final class PathSearchDebugRecorder {
     }
 
     public void recordAcceptedEdge(PathNode from, PathNode to, PathEdgeDebugType type, boolean backward) {
-        addEdgeAttempt(new PathEdgeDebugEntry(
-            pos(from),
-            pos(to),
-            type,
-            true,
-            PathEdgeDebugEntry.NO_REJECTION,
-            backward
-        ));
+        addEdgeAttempt(
+            new PathEdgeDebugEntry(
+                pos(from),
+                pos(to),
+                type,
+                true,
+                PathEdgeDebugEntry.NO_REJECTION,
+                backward
+            )
+        );
     }
 
     public void recordRejectedEdge(
@@ -147,14 +149,16 @@ public final class PathSearchDebugRecorder {
     ) {
         var summary = rejections.computeIfAbsent(reason, ignored -> new MutableSummary());
         summary.recordEdge(type, pos(to));
-        addEdgeAttempt(new PathEdgeDebugEntry(
-            pos(from),
-            pos(to),
-            type,
-            false,
-            reason.ordinal(),
-            backward
-        ));
+        addEdgeAttempt(
+            new PathEdgeDebugEntry(
+                pos(from),
+                pos(to),
+                type,
+                false,
+                reason.ordinal(),
+                backward
+            )
+        );
     }
 
     public void recordOpenNode(PathNode node, PathNode parent, float gCost, float hCost, boolean backward) {
@@ -193,17 +197,19 @@ public final class PathSearchDebugRecorder {
             return;
         }
 
-        activeEdgeAttempt.clearanceBoxes.add(new PathAabbDebugEntry(
-            activeEdgeAttempt.to,
-            box.minX,
-            box.minY,
-            box.minZ,
-            box.maxX,
-            box.maxY,
-            box.maxZ,
-            activeEdgeAttempt.type,
-            reason.ordinal()
-        ));
+        activeEdgeAttempt.clearanceBoxes.add(
+            new PathAabbDebugEntry(
+                activeEdgeAttempt.to,
+                box.minX,
+                box.minY,
+                box.minZ,
+                box.maxX,
+                box.maxY,
+                box.maxZ,
+                activeEdgeAttempt.type,
+                reason.ordinal()
+            )
+        );
     }
 
     public void recordSupportCell(int x, int y, int z, boolean supported) {
@@ -211,12 +217,14 @@ public final class PathSearchDebugRecorder {
             return;
         }
 
-        activeEdgeAttempt.supportFootprint.add(new PathSupportDebugEntry(
-            activeEdgeAttempt.to,
-            new PathDebugBlockPos(x, y, z),
-            supported,
-            activeEdgeAttempt.type
-        ));
+        activeEdgeAttempt.supportFootprint.add(
+            new PathSupportDebugEntry(
+                activeEdgeAttempt.to,
+                new PathDebugBlockPos(x, y, z),
+                supported,
+                activeEdgeAttempt.type
+            )
+        );
     }
 
     public void recordBlockingBlock(int x, int y, int z, PathRejectionReason reason) {
@@ -224,12 +232,14 @@ public final class PathSearchDebugRecorder {
             return;
         }
 
-        activeEdgeAttempt.blockingBlocks.add(new PathBlockDebugEntry(
-            activeEdgeAttempt.to,
-            new PathDebugBlockPos(x, y, z),
-            activeEdgeAttempt.type,
-            reason.ordinal()
-        ));
+        activeEdgeAttempt.blockingBlocks.add(
+            new PathBlockDebugEntry(
+                activeEdgeAttempt.to,
+                new PathDebugBlockPos(x, y, z),
+                activeEdgeAttempt.type,
+                reason.ordinal()
+            )
+        );
     }
 
     public List<PathRejectionDebugData> rejectionSummary() {
@@ -239,12 +249,14 @@ public final class PathSearchDebugRecorder {
 
         var out = new ArrayList<PathRejectionDebugData>(rejections.size());
         for (var entry : rejections.entrySet()) {
-            out.add(new PathRejectionDebugData(
-                entry.getKey(),
-                entry.getValue().count,
-                entry.getValue().samples,
-                entry.getValue().edgeBreakdown()
-            ));
+            out.add(
+                new PathRejectionDebugData(
+                    entry.getKey(),
+                    entry.getValue().count,
+                    entry.getValue().samples,
+                    entry.getValue().edgeBreakdown()
+                )
+            );
         }
         return out;
     }

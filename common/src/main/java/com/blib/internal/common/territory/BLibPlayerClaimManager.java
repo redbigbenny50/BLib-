@@ -7,8 +7,8 @@ import net.minecraft.world.level.ChunkPos;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.UUID;
 import java.util.Set;
+import java.util.UUID;
 
 import com.blib.api.common.faction.v1.ClaimVisibility;
 import com.blib.internal.common.faction.BLibFactionManager;

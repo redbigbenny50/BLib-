@@ -19,8 +19,8 @@ import java.util.concurrent.Executors;
 
 import com.blib.api.common.pathfinding.v1.cache.TerrainClassificationCache;
 import com.blib.api.common.pathfinding.v1.debug.DebugNodeEntry;
-import com.blib.api.common.pathfinding.v1.debug.PathEdgeDebugType;
 import com.blib.api.common.pathfinding.v1.debug.PathDebugBlockPos;
+import com.blib.api.common.pathfinding.v1.debug.PathEdgeDebugType;
 import com.blib.api.common.pathfinding.v1.debug.PathRejectionReason;
 import com.blib.api.common.pathfinding.v1.debug.PathSearchDebugData;
 import com.blib.api.common.pathfinding.v1.debug.PathSearchDebugRecorder;
@@ -42,8 +42,8 @@ import com.blib.api.common.pathfinding.v1.terrain.TerrainType;
 /**
  * A* pathfinding with optional two-level hierarchical search. When the section-corridor feature is enabled and a
  * {@link TerrainClassificationCache} is provided, the pathfinder first runs a fast section-level A* via
- * {@link SectionCorridorFinder} to identify a corridor of 16x16x16 sections, then runs the block-level A* restricted
- * to that corridor.
+ * {@link SectionCorridorFinder} to identify a corridor of 16x16x16 sections, then runs the block-level A* restricted to
+ * that corridor.
  */
 public final class BLibPathFinder {
 
@@ -268,8 +268,8 @@ public final class BLibPathFinder {
     }
 
     /**
-     * Runs block-level A* directly without a section corridor gate. Use this as a fallback when the section-level route is
-     * unavailable or when nearby targets need exact block-level digging/clearance decisions.
+     * Runs block-level A* directly without a section corridor gate. Use this as a fallback when the section-level route
+     * is unavailable or when nearby targets need exact block-level digging/clearance decisions.
      */
     public @Nullable BLibPath findPathDirect(LevelReader level, BlockPos startPos, BlockPos targetPos) {
         debugEnabled = debugCaptureEnabled;

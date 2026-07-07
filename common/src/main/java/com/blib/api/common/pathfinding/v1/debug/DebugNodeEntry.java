@@ -12,14 +12,14 @@ import java.util.List;
 /**
  * Serializable snapshot of a single A* node for debug visualization.
  *
- * @param x           block x position
- * @param y           block y position
- * @param z           block z position
- * @param terrainType ordinal of {@link com.blib.api.common.pathfinding.v1.terrain.TerrainType}
- * @param pathIndex   0-based index of this node in the final reconstructed path, or {@code -1} if not on the path
- * @param gCost       accumulated path cost from the start node
- * @param hCost       heuristic estimate from this node to the goal
- * @param costMalus   extra traversal cost assigned to this node
+ * @param x              block x position
+ * @param y              block y position
+ * @param z              block z position
+ * @param terrainType    ordinal of {@link com.blib.api.common.pathfinding.v1.terrain.TerrainType}
+ * @param pathIndex      0-based index of this node in the final reconstructed path, or {@code -1} if not on the path
+ * @param gCost          accumulated path cost from the start node
+ * @param hCost          heuristic estimate from this node to the goal
+ * @param costMalus      extra traversal cost assigned to this node
  * @param blockBreakPlan blocks this path node requires breaking before traversal
  */
 public record DebugNodeEntry(

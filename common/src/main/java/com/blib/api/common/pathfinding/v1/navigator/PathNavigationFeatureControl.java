@@ -17,7 +17,8 @@ public interface PathNavigationFeatureControl {
 
     PathfindingFeatures getDefaultPathfindingFeatures();
 
-    @Nullable PathfindingProfile getPathfindingProfile();
+    @Nullable
+    PathfindingProfile getPathfindingProfile();
 
     int getPathfindingFeaturesRevision();
 

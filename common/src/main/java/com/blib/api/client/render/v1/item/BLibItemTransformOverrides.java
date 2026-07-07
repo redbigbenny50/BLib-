@@ -381,7 +381,6 @@ public final class BLibItemTransformOverrides {
         return BLibTransform.IDENTITY;
     }
 
-
     /** Returns the live override map for the given (item, mode), or an empty map if none is set. Read-only view. */
     public static Map<ItemDisplayContext, BLibTransform> snapshot(ResourceLocation itemId, BLibItemTransformMode mode) {
         var modeMap = OVERRIDES.get(itemId);

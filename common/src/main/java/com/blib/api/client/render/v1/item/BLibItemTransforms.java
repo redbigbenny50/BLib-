@@ -93,8 +93,8 @@ public class BLibItemTransforms {
 
     /**
      * Decode a vanilla-style display-block map (keys = {@link ItemDisplayContext#getSerializedName()} plus the BLib
-     * {@code fixed_wall}/{@code fixed_ground} extensions) into a {@link BLibItemTransforms}. Unknown keys are ignored
-     * — vanilla's display block is small but stable, and silently skipping unrecognized perspectives keeps forward
+     * {@code fixed_wall}/{@code fixed_ground} extensions) into a {@link BLibItemTransforms}. Unknown keys are ignored —
+     * vanilla's display block is small but stable, and silently skipping unrecognized perspectives keeps forward
      * compatibility cheap.
      */
     private static BLibItemTransforms fromSerializedMap(Map<String, BLibTransform> map) {

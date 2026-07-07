@@ -68,8 +68,8 @@ final class PathNavigationPostureComponent implements PathNavigationPostureView 
     }
 
     /**
-     * Returns the posture required by the active waypoint. Use
-     * {@link #getDesiredPosture(double, double, double)} when movement code wants near-entry crawl anticipation.
+     * Returns the posture required by the active waypoint. Use {@link #getDesiredPosture(double, double, double)} when
+     * movement code wants near-entry crawl anticipation.
      */
     @Override
     public PathPosture getDesiredPosture() {

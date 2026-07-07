@@ -21,8 +21,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-import com.blib.api.common.dismemberment.v1.LimbPose;
 import com.blib.api.common.dismemberment.v1.LimbBoneTransform;
+import com.blib.api.common.dismemberment.v1.LimbPose;
 import com.blib.api.common.dismemberment.v1.LimbVisuals;
 import com.blib.api.common.registry.v1.BLibHolder;
 
@@ -77,7 +77,11 @@ public abstract class LimbVisualsDataProvider implements DataProvider {
         return "BLib Limb Visuals";
     }
 
-    private record File(Optional<ResourceLocation> parent, Map<ResourceLocation, LimbVisuals> visuals, boolean replace) {
+    private record File(
+        Optional<ResourceLocation> parent,
+        Map<ResourceLocation, LimbVisuals> visuals,
+        boolean replace
+    ) {
 
         private static final Codec<File> CODEC = RecordCodecBuilder.create(
             instance -> instance.group(

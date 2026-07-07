@@ -25,18 +25,18 @@ public class BlockBreakProgressManager {
             return;
         }
 
-        //LOGGER.debug(
-        //    "Cleaning block break progress map ({} entries)",
-        //    BlockBreakProgressManager.BLOCK_BREAK_PROGRESS_MAP.size()
-        //);
+        // LOGGER.debug(
+        // "Cleaning block break progress map ({} entries)",
+        // BlockBreakProgressManager.BLOCK_BREAK_PROGRESS_MAP.size()
+        // );
         BlockBreakProgressManager.BLOCK_BREAK_PROGRESS_MAP.entrySet().removeIf(entry -> {
             var lastUpdateTimeMillis = entry.getValue().getKey();
             return System.currentTimeMillis() > lastUpdateTimeMillis;
         });
-        //LOGGER.debug(
-        //    "Finished cleaning block break progress map ({} entries)",
-        //    BlockBreakProgressManager.BLOCK_BREAK_PROGRESS_MAP.size()
-        //);
+        // LOGGER.debug(
+        // "Finished cleaning block break progress map ({} entries)",
+        // BlockBreakProgressManager.BLOCK_BREAK_PROGRESS_MAP.size()
+        // );
     }
 
     public static void resetProgress(Level level, BlockPos pos) {

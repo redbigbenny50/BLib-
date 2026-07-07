@@ -14,7 +14,6 @@ import java.util.UUID;
 
 import com.blib.api.common.block.v1.BlockBreakProgressManager;
 import com.blib.api.common.pathfinding.v1.debug.PathDebugBlockPos;
-import com.blib.api.common.pathfinding.v1.evaluator.PathBlockBreakingConfig;
 import com.blib.api.common.pathfinding.v1.feature.PathfindingFeature;
 import com.blib.api.common.pathfinding.v1.navigator.PathNavigatorApi;
 import com.blib.api.common.pathfinding.v1.node.PathBlockBreakPlan;

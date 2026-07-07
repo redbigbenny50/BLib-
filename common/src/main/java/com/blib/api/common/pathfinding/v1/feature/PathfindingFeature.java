@@ -5,6 +5,7 @@ package com.blib.api.common.pathfinding.v1.feature;
  * without changing the rest of the navigator.
  */
 public enum PathfindingFeature {
+
     SAME_LEVEL_MOVEMENT(1L << 0, "Same Level", Category.GROUND),
     DIAGONAL_MOVEMENT(1L << 1, "Diagonal"),
     STEP_UP(1L << 2, "Step Up", Category.GROUND),

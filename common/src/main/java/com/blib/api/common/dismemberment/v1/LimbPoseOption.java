@@ -8,8 +8,8 @@ import java.util.Objects;
 /**
  * Server-side pose selection metadata for a detachable limb.
  * <p>
- * The visual transform for the pose lives in {@link LimbVisuals}; this record only tells the server which authored
- * pose ids are eligible for random selection and how heavily each one should be weighted.
+ * The visual transform for the pose lives in {@link LimbVisuals}; this record only tells the server which authored pose
+ * ids are eligible for random selection and how heavily each one should be weighted.
  */
 public record LimbPoseOption(
     String id,

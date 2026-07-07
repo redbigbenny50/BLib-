@@ -9,8 +9,8 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -47,8 +47,14 @@ public final class LimbDefinitionDataLoader extends SimplePreparableReloadListen
 
     private static final String DIRECTORY = "blib_limbs";
 
-    /** Per-file shape: {@code { "replace": false, "parent": "<template_id>", "limbs": [ {LimbDefinition...}, ... ] }}. */
-    private record DecodedFile(Optional<ResourceLocation> parent, List<LimbDefinition> limbs, boolean replace) {
+    /**
+     * Per-file shape: {@code { "replace": false, "parent": "<template_id>", "limbs": [ {LimbDefinition...}, ... ] }}.
+     */
+    private record DecodedFile(
+        Optional<ResourceLocation> parent,
+        List<LimbDefinition> limbs,
+        boolean replace
+    ) {
 
         static final Codec<DecodedFile> CODEC = RecordCodecBuilder.create(
             instance -> instance.group(
@@ -59,7 +65,12 @@ public final class LimbDefinitionDataLoader extends SimplePreparableReloadListen
         );
     }
 
-    record File(Optional<ResourceLocation> parent, boolean parentSpecified, List<LimbDefinition> limbs, boolean replace) {
+    record File(
+        Optional<ResourceLocation> parent,
+        boolean parentSpecified,
+        List<LimbDefinition> limbs,
+        boolean replace
+    ) {
 
         File {
             limbs = List.copyOf(limbs);

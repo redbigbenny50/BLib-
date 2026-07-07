@@ -1,5 +1,6 @@
 package com.blib.api.common.pathfinding.v1.navigator;
 
+import com.just.core.functional.result.Result;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -8,8 +9,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
-
-import com.just.core.functional.result.Result;
 
 import com.blib.api.common.pathfinding.v1.debug.PathSearchSnapshot;
 import com.blib.api.common.pathfinding.v1.node.PathNode;
@@ -55,7 +54,8 @@ final class PathNavigationStateComponent implements PathNavigationState {
 
     long lastFailureTick;
 
-    @Nullable BlockPos lastFailureEntityStart;
+    @Nullable
+    BlockPos lastFailureEntityStart;
 
     double lastEntityX;
 
@@ -231,7 +231,9 @@ final class PathNavigationStateComponent implements PathNavigationState {
         return switch (lifecycle) {
             case PathNavigationLifecycle.Planning planning -> planning.request().searchTarget();
             case PathNavigationLifecycle.Navigating navigating -> navigating.activePath().request().searchTarget();
-            case PathNavigationLifecycle.AwaitingNextSegment awaitingNextSegment -> awaitingNextSegment.completedSegment().request().searchTarget();
+            case PathNavigationLifecycle.AwaitingNextSegment awaitingNextSegment -> awaitingNextSegment.completedSegment()
+                .request()
+                .searchTarget();
             case PathNavigationLifecycle.AwaitingRepath awaitingRepath -> awaitingRepath.request().searchTarget();
             case PathNavigationLifecycle.Reached reached -> reached.completedPath().request().searchTarget();
             case PathNavigationLifecycle.Exhausted exhausted -> exhausted.completedPath().request().searchTarget();
@@ -254,11 +256,13 @@ final class PathNavigationStateComponent implements PathNavigationState {
         return (int) Math.max(0, failureCooldownTicks - (cooldownClockSupplier.getAsLong() - lastFailureTick));
     }
 
-    @Nullable PathNavigationLifecycle.Planning pendingPlanning() {
+    @Nullable
+    PathNavigationLifecycle.Planning pendingPlanning() {
         return lifecycle instanceof PathNavigationLifecycle.Planning planning ? planning : null;
     }
 
-    @Nullable PathNavigationLifecycle.RequestContext currentRequest() {
+    @Nullable
+    PathNavigationLifecycle.RequestContext currentRequest() {
         return switch (lifecycle) {
             case PathNavigationLifecycle.Planning planning -> planning.request();
             case PathNavigationLifecycle.Navigating navigating -> navigating.activePath().request();
@@ -271,19 +275,22 @@ final class PathNavigationStateComponent implements PathNavigationState {
         };
     }
 
-    @Nullable BlockPos currentRawTarget() {
+    @Nullable
+    BlockPos currentRawTarget() {
         var request = currentRequest();
 
         return request != null ? request.rawTarget() : null;
     }
 
-    @Nullable BlockPos currentSearchTarget() {
+    @Nullable
+    BlockPos currentSearchTarget() {
         var request = currentRequest();
 
         return request != null ? request.searchTarget() : null;
     }
 
-    @Nullable PathNavigationLifecycle.ActivePathContext activePathContext() {
+    @Nullable
+    PathNavigationLifecycle.ActivePathContext activePathContext() {
         var activePath = switch (lifecycle) {
             case PathNavigationLifecycle.Navigating navigating -> navigating.activePath();
             case PathNavigationLifecycle.Planning planning -> planning.activePath();
@@ -302,19 +309,22 @@ final class PathNavigationStateComponent implements PathNavigationState {
         return activePath;
     }
 
-    @Nullable BLibPath activePath() {
+    @Nullable
+    BLibPath activePath() {
         var activePath = activePathContext();
 
         return activePath != null ? activePath.path() : null;
     }
 
-    @Nullable BLibPath currentPath() {
+    @Nullable
+    BLibPath currentPath() {
         var currentPathContext = currentActivePathContext();
 
         return currentPathContext != null ? currentPathContext.path() : null;
     }
 
-    @Nullable TerrainType currentTerrain() {
+    @Nullable
+    TerrainType currentTerrain() {
         var currentPathContext = currentActivePathContext();
 
         return currentPathContext != null ? currentPathContext.currentTerrain() : null;
@@ -332,7 +342,8 @@ final class PathNavigationStateComponent implements PathNavigationState {
         return new PathNavigationLifecycle.RequestContext(entityStart, rawTarget, searchTarget);
     }
 
-    @Nullable PathNavigationLifecycle.ActivePathContext currentActivePathContext() {
+    @Nullable
+    PathNavigationLifecycle.ActivePathContext currentActivePathContext() {
         var activePath = switch (lifecycle) {
             case PathNavigationLifecycle.Navigating navigating -> navigating.activePath();
             case PathNavigationLifecycle.Planning planning -> planning.activePath();
@@ -589,47 +600,44 @@ final class PathNavigationStateComponent implements PathNavigationState {
                 // Only a Planning state is allowed to publish a computed path result.
                 from instanceof PathNavigationLifecycle.Planning
                     && (
-                        // The computed path has a current node that can be followed immediately.
-                        to instanceof PathNavigationLifecycle.Navigating
-                            // A segmented route completed this segment but still has more route to compute.
-                            || to instanceof PathNavigationLifecycle.AwaitingNextSegment
-                            // The computed path is already complete and reached the requested target.
-                            || to instanceof PathNavigationLifecycle.Reached
-                            // The computed path is complete but did not reach the requested target.
-                            || to instanceof PathNavigationLifecycle.Exhausted
-                            // The plan failed, hit cooldown, or produced no usable path.
-                            || to instanceof PathNavigationLifecycle.Failed
-                    );
+                // The computed path has a current node that can be followed immediately.
+                to instanceof PathNavigationLifecycle.Navigating
+                    // A segmented route completed this segment but still has more route to compute.
+                    || to instanceof PathNavigationLifecycle.AwaitingNextSegment
+                // The computed path is already complete and reached the requested target.
+                    || to instanceof PathNavigationLifecycle.Reached
+                // The computed path is complete but did not reach the requested target.
+                    || to instanceof PathNavigationLifecycle.Exhausted
+                // The plan failed, hit cooldown, or produced no usable path.
+                    || to instanceof PathNavigationLifecycle.Failed);
             case CANCEL_PLANNING ->
                 // Only an interrupted Planning state can be restored after cancellation.
                 from instanceof PathNavigationLifecycle.Planning
                     && (
-                        // Cancelling with no previous active path returns the navigator to rest.
-                        to instanceof PathNavigationLifecycle.Idle
-                            // Cancelling with an unfinished previous path resumes that path.
-                            || to instanceof PathNavigationLifecycle.Navigating
-                            // Cancelling with a completed previous path that reached its target preserves completion.
-                            || to instanceof PathNavigationLifecycle.Reached
-                            // Cancelling with a completed previous path that did not reach its target preserves exhaustion.
-                            || to instanceof PathNavigationLifecycle.Exhausted
-                    );
+                // Cancelling with no previous active path returns the navigator to rest.
+                to instanceof PathNavigationLifecycle.Idle
+                    // Cancelling with an unfinished previous path resumes that path.
+                    || to instanceof PathNavigationLifecycle.Navigating
+                // Cancelling with a completed previous path that reached its target preserves completion.
+                    || to instanceof PathNavigationLifecycle.Reached
+                // Cancelling with a completed previous path that did not reach its target preserves exhaustion.
+                    || to instanceof PathNavigationLifecycle.Exhausted);
             case INVALIDATE_FOR_REPATH ->
                 (
-                    // A pending plan can be superseded and replaced by a queued replan.
-                    from instanceof PathNavigationLifecycle.Planning
-                        // An active path can be invalidated by feature, runtime, target, or progress changes.
-                        || from instanceof PathNavigationLifecycle.Navigating
-                        // A completed segment can be invalidated before the next segment is computed.
-                        || from instanceof PathNavigationLifecycle.AwaitingNextSegment
-                        // A queued replan can be refreshed with newer request data.
-                        || from instanceof PathNavigationLifecycle.AwaitingRepath
-                        // A reached path can become stale after target, feature, or runtime changes.
-                        || from instanceof PathNavigationLifecycle.Reached
-                        // An exhausted path can be retried after target, feature, or runtime changes.
-                        || from instanceof PathNavigationLifecycle.Exhausted
-                        // A failed request can be retried after explicit invalidation.
-                        || from instanceof PathNavigationLifecycle.Failed
-                )
+                // A pending plan can be superseded and replaced by a queued replan.
+                from instanceof PathNavigationLifecycle.Planning
+                    // An active path can be invalidated by feature, runtime, target, or progress changes.
+                    || from instanceof PathNavigationLifecycle.Navigating
+                // A completed segment can be invalidated before the next segment is computed.
+                    || from instanceof PathNavigationLifecycle.AwaitingNextSegment
+                // A queued replan can be refreshed with newer request data.
+                    || from instanceof PathNavigationLifecycle.AwaitingRepath
+                // A reached path can become stale after target, feature, or runtime changes.
+                    || from instanceof PathNavigationLifecycle.Reached
+                // An exhausted path can be retried after target, feature, or runtime changes.
+                    || from instanceof PathNavigationLifecycle.Exhausted
+                // A failed request can be retried after explicit invalidation.
+                    || from instanceof PathNavigationLifecycle.Failed)
                     // Invalidation stores the latest request until the next tick handles the replan.
                     && to instanceof PathNavigationLifecycle.AwaitingRepath;
             case STOP ->
@@ -640,21 +648,19 @@ final class PathNavigationStateComponent implements PathNavigationState {
                 from.getClass() == to.getClass();
             case REFRESH_TERMINAL ->
                 (
-                    // An active path can finish as waypoints advance.
-                    from instanceof PathNavigationLifecycle.Navigating
-                        // A segment waiting for route continuation can be closed out if the route becomes terminal.
-                        || from instanceof PathNavigationLifecycle.AwaitingNextSegment
-                        // A reached state can be refreshed after its path has already completed.
-                        || from instanceof PathNavigationLifecycle.Reached
-                        // An exhausted state can be refreshed after its path has already completed.
-                        || from instanceof PathNavigationLifecycle.Exhausted
-                )
+                // An active path can finish as waypoints advance.
+                from instanceof PathNavigationLifecycle.Navigating
+                    // A segment waiting for route continuation can be closed out if the route becomes terminal.
+                    || from instanceof PathNavigationLifecycle.AwaitingNextSegment
+                // A reached state can be refreshed after its path has already completed.
+                    || from instanceof PathNavigationLifecycle.Reached
+                // An exhausted state can be refreshed after its path has already completed.
+                    || from instanceof PathNavigationLifecycle.Exhausted)
                     && (
-                        // Terminal refresh preserves or discovers that the target was reached.
-                        to instanceof PathNavigationLifecycle.Reached
-                            // Terminal refresh preserves or discovers that the path ended before the target.
-                            || to instanceof PathNavigationLifecycle.Exhausted
-                    );
+                // Terminal refresh preserves or discovers that the target was reached.
+                to instanceof PathNavigationLifecycle.Reached
+                    // Terminal refresh preserves or discovers that the path ended before the target.
+                    || to instanceof PathNavigationLifecycle.Exhausted);
         };
     }
 }

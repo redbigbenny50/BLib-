@@ -6,6 +6,7 @@ import com.just.codec.stream.StreamCodec;
  * User-facing result category for a path search.
  */
 public enum PathSearchOutcome {
+
     COMPLETE,
     PARTIAL,
     FAILED;

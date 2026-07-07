@@ -77,7 +77,11 @@ public abstract class LimbDefinitionDataProvider implements DataProvider {
         return "BLib Limb Definitions";
     }
 
-    private record File(Optional<ResourceLocation> parent, List<LimbDefinition> limbs, boolean replace) {
+    private record File(
+        Optional<ResourceLocation> parent,
+        List<LimbDefinition> limbs,
+        boolean replace
+    ) {
 
         private static final Codec<File> CODEC = RecordCodecBuilder.create(
             instance -> instance.group(

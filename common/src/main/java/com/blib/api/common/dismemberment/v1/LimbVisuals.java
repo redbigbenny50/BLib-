@@ -57,7 +57,17 @@ public record LimbVisuals(
         Vec3 renderPivot,
         boolean modelerTransform
     ) {
-        this(rootBoneName, companionBoneNames, List.of(), renderOffset, renderRotation, renderScale, renderPivot, modelerTransform, List.of());
+        this(
+            rootBoneName,
+            companionBoneNames,
+            List.of(),
+            renderOffset,
+            renderRotation,
+            renderScale,
+            renderPivot,
+            modelerTransform,
+            List.of()
+        );
     }
 
     public LimbVisuals(
@@ -70,7 +80,17 @@ public record LimbVisuals(
         Vec3 renderPivot,
         boolean modelerTransform
     ) {
-        this(rootBoneName, companionBoneNames, excludedBoneNames, renderOffset, renderRotation, renderScale, renderPivot, modelerTransform, List.of());
+        this(
+            rootBoneName,
+            companionBoneNames,
+            excludedBoneNames,
+            renderOffset,
+            renderRotation,
+            renderScale,
+            renderPivot,
+            modelerTransform,
+            List.of()
+        );
     }
 
     public LimbVisuals(

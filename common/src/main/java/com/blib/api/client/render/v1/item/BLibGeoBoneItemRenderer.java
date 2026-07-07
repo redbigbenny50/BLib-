@@ -5,8 +5,8 @@ import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
-import java.util.UUID;
 import java.util.Set;
+import java.util.UUID;
 
 import com.blib.api.client.model.v1.AzBakedModel;
 import com.blib.api.client.render.v1.AzRendererPipelineContext;
@@ -40,8 +40,8 @@ import com.blib.api.client.render.v1.item.pipeline.AzItemRendererPipelineContext
  * {@link BLibTransform#rotation()}/{@link BLibTransform#scale()} sweeps the entire bone subtree around the pivot.
  * {@link BLibTransform#pivot()} is a manual nudge — an offset added to the bone's authored pivot when the user wants
  * the rotation center somewhere other than the bone pivot itself.</li>
- * <li>Applies the config's {@link BLibItemTransforms} (or {@link BLibGeoBoneItemRendererConfig#blockingTransforms} when
- * {@link BLibGeoBoneItemRendererConfig#isBlocking} returns true) before bone rendering, letting you position the bone
+ * <li>Applies the config's {@link BLibItemTransforms} (or {@link BLibGeoBoneItemRendererConfig#blockingTransforms()} when
+ * {@link BLibGeoBoneItemRendererConfig#isBlocking()} returns true) before bone rendering, letting you position the bone
  * differently per render context.</li>
  * </ul>
  * <p>
@@ -66,20 +66,20 @@ public class BLibGeoBoneItemRenderer extends AzItemRenderer {
         var hiddenBoneNames = Set.copyOf(config.hiddenBoneNames());
 
         return AzItemRendererConfig.builder(config.geoModel(), config.texture())
-            .setModelRenderer(
-                (pipeline, layerRenderer) -> new BLibGeoBoneItemModelRenderer(
-                    (AzItemRendererPipeline) pipeline,
-                    layerRenderer,
-                    config.boneName()
+                .setModelRenderer(
+                        (pipeline, layerRenderer) -> new BLibGeoBoneItemModelRenderer(
+                                (AzItemRendererPipeline) pipeline,
+                                layerRenderer,
+                                config.boneName()
+                        )
                 )
-            )
-            .disableAnimationInAllContexts()
-            .setBoneVisibilityFilter((bone, stack) -> hiddenBoneNames.contains(bone.getName()))
-            .setPrerenderEntry(context -> {
-                applyTransforms(config, context);
-                return context;
-            })
-            .build();
+                .disableAnimationInAllContexts()
+                .setBoneVisibilityFilter((bone, stack) -> hiddenBoneNames.contains(bone.getName()))
+                .setPrerenderEntry(context -> {
+                    applyTransforms(config, context);
+                    return context;
+                })
+                .build();
     }
 
     private static void applyTransforms(BLibGeoBoneItemRendererConfig config, AzRendererPipelineContext<UUID, ItemStack> context) {
@@ -91,7 +91,7 @@ public class BLibGeoBoneItemRenderer extends AzItemRenderer {
         // can tune blocking-pose transforms (with gizmos / set-nudge commands) without physically holding
         // RMB. Otherwise the predicate runs as normal — typically `isBlocking` checks the player's use state.
         var blockingActive = config.blockingTransforms() != null
-            && (BLibItemTransformOverrides.isForceBlockingEnabled() || config.isBlocking().test(stack));
+                && (BLibItemTransformOverrides.isForceBlockingEnabled() || config.isBlocking().test(stack));
 
         BLibTransform transform = null;
 
@@ -113,9 +113,9 @@ public class BLibGeoBoneItemRenderer extends AzItemRenderer {
         if (displayContext == ItemDisplayContext.FIXED) {
             if (BLibItemTransformOverrides.isRenderAsWallBlock()) {
                 var wallTransform = fixedSurfaceTransform(
-                    config,
-                    blockingActive,
-                    BLibItemTransforms::getFixedWallOrNull
+                        config,
+                        blockingActive,
+                        BLibItemTransforms::getFixedWallOrNull
                 );
 
                 if (wallTransform != null) {
@@ -123,9 +123,9 @@ public class BLibGeoBoneItemRenderer extends AzItemRenderer {
                 }
             } else if (BLibItemTransformOverrides.isRenderAsGroundBlock()) {
                 var groundTransform = fixedSurfaceTransform(
-                    config,
-                    blockingActive,
-                    BLibItemTransforms::getFixedGroundOrNull
+                        config,
+                        blockingActive,
+                        BLibItemTransforms::getFixedGroundOrNull
                 );
 
                 if (groundTransform != null) {
@@ -149,9 +149,9 @@ public class BLibGeoBoneItemRenderer extends AzItemRenderer {
     }
 
     private static @Nullable BLibTransform fixedSurfaceTransform(
-        BLibGeoBoneItemRendererConfig config,
-        boolean blockingActive,
-        java.util.function.Function<BLibItemTransforms, @Nullable BLibTransform> getter
+            BLibGeoBoneItemRendererConfig config,
+            boolean blockingActive,
+            java.util.function.Function<BLibItemTransforms, @Nullable BLibTransform> getter
     ) {
         if (blockingActive && config.blockingTransforms() != null) {
             var blocking = getter.apply(config.blockingTransforms());

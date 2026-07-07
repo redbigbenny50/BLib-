@@ -21,11 +21,14 @@ import com.blib.mod.BLib;
  * established).
  * <p>
  * The wire format carries resolved entity entries plus resolved template entries. The client repopulates
- * {@code LimbDefinitionRegistry}'s tier-2 with synthetic
- * {@link com.blib.api.common.dismemberment.v1.LimbDefinition}s whose {@code spawnOffsetProvider} is a no-op (clients
- * never call it; the server computes the spawn position before the limb entity is created).
+ * {@code LimbDefinitionRegistry}'s tier-2 with synthetic {@link com.blib.api.common.dismemberment.v1.LimbDefinition}s
+ * whose {@code spawnOffsetProvider} is a no-op (clients never call it; the server computes the spawn position before
+ * the limb entity is created).
  */
-public record S2CLimbDefinitionsSyncPayload(List<EntityTypeLimbs> entries, List<TemplateLimbs> templates) implements CustomPacketPayload {
+public record S2CLimbDefinitionsSyncPayload(
+    List<EntityTypeLimbs> entries,
+    List<TemplateLimbs> templates
+) implements CustomPacketPayload {
 
     public static final ResourceLocation PAYLOAD_ID = BLib.MOD.resources().createLocation("limb_definitions_sync");
 

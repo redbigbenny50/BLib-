@@ -180,8 +180,7 @@ final class PathNavigationTargetComponent implements PathNavigationAnchorResolve
                 || lastProjectionTargetPos == null
                 || lastProjectionTargetPos.equals(lastProjectionRawTargetPos)
                 || rawTarget.getY() != lastProjectionRawTargetPos.getY()
-                || horizontalDistanceSquared(rawTarget, lastProjectionRawTargetPos)
-                    >= TARGET_PROJECTION_REUSE_DISTANCE_SQUARED
+                || horizontalDistanceSquared(rawTarget, lastProjectionRawTargetPos) >= TARGET_PROJECTION_REUSE_DISTANCE_SQUARED
                 || !isProjectionTargetCandidate(lastProjectionTargetPos)
         ) {
             return null;
@@ -246,10 +245,8 @@ final class PathNavigationTargetComponent implements PathNavigationAnchorResolve
                 && lastProjectionTargetPos != null
                 && rawTarget.getY() == lastProjectionRawTargetPos.getY()
                 && lastProjectionTargetPos.getY() == projectedTarget.getY()
-                && horizontalDistanceSquared(rawTarget, lastProjectionRawTargetPos)
-                    < TARGET_PROJECTION_REUSE_DISTANCE_SQUARED
-                && horizontalDistanceSquared(projectedTarget, lastProjectionTargetPos)
-                    < TARGET_PROJECTION_REUSE_DISTANCE_SQUARED
+                && horizontalDistanceSquared(rawTarget, lastProjectionRawTargetPos) < TARGET_PROJECTION_REUSE_DISTANCE_SQUARED
+                && horizontalDistanceSquared(projectedTarget, lastProjectionTargetPos) < TARGET_PROJECTION_REUSE_DISTANCE_SQUARED
                 && isProjectionTargetCandidate(lastProjectionTargetPos)
         ) {
             lastProjectionRawTargetPos = rawTarget;
