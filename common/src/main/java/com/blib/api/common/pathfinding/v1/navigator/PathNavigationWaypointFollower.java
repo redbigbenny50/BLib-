@@ -33,6 +33,11 @@ final class PathNavigationWaypointFollower {
     // steps still require the mob to actually climb before the waypoint counts as reached.
     private static final double WAYPOINT_REACH_Y = 0.6;
 
+    // Upper bound for the grounded vertical-reach fallback. Must stay below a full block (1.0) so real full-height
+    // steps still require climbing; comfortably clears the tallest partial footing (a closed trapdoor sits ~0.8125
+    // below its node).
+    private static final double GROUNDED_WAYPOINT_REACH_Y = 0.9;
+
     private static final double DESCENDING_STAIR_EDGE_REACH_PROGRESS = 0.5;
 
     private static final double DROP_ENTRY_MIN_REACH_XZ = 0.75;
@@ -128,6 +133,22 @@ final class PathNavigationWaypointFollower {
             ) {
                 withinVerticalReach = true;
                 markFeatureUsed(PathfindingFeature.STEPPED_FOOTPRINT_SUPPORT);
+            }
+
+            // Grounded fallback for composite/partial-block footing. A node stores one Y and the target center one
+            // surface height, but a stair's tread height varies across its own footprint, so a mob standing on the
+            // low tread can sit further below the node than the flat reach tolerance allows and never register the
+            // waypoint as reached -> spins in place. If the mob is physically resting on a surface here (not falling
+            // or mid-climb) and is less than a full block off the node, it is standing at that node's level as
+            // closely as it ever will, so accept the vertical reach. Gated below a full block so genuine full-height
+            // steps still require the mob to climb, and the horizontal reach check below still applies.
+            if (
+                    !awaitingDropEntry
+                            && !withinVerticalReach
+                            && dy < GROUNDED_WAYPOINT_REACH_Y
+                            && spaceQuery.isRestingOnSurface(entityX, entityY, entityZ, entityWidth)
+            ) {
+                withinVerticalReach = true;
             }
 
             var withinReach = dx <= activeReachXZ && withinVerticalReach && dz <= activeReachXZ;

@@ -21,6 +21,10 @@ final class PathNavigationSpaceQuery {
 
     private static final double COLLISION_EPSILON = 1.0E-7;
 
+    // How close a collision top must be to the entity's feet to count as footing. A resting entity's feet coincide
+    // with the support top; this small band absorbs collision-resolution jitter and slight sink (soul sand, mud).
+    private static final double SURFACE_CONTACT_TOLERANCE = 0.06;
+
     private final LevelReader level;
 
     private final PathNavigatorConfig config;
@@ -184,6 +188,64 @@ final class PathNavigationSpaceQuery {
         }
 
         return bestSurface == Double.NEGATIVE_INFINITY ? nodeY : bestSurface;
+    }
+
+    /**
+     * True when the entity's feet are resting on a solid collision surface (i.e. it is standing, not falling or
+     * climbing). Unlike {@link #hasSupportAt} this is footprint-aware and tolerant of partial-block footing: it scans
+     * the feet block and the one below, and accepts any collision box whose top sits within a hair of the feet and
+     * overlaps the footprint horizontally. That covers full blocks, slabs, closed trapdoors, and the low tread of a
+     * stair equally, which the feet-block-minus-one probe in {@link #hasSupportAt} misses when the feet Y is not a
+     * whole number.
+     */
+    boolean isRestingOnSurface(double x, double feetY, double z, float width) {
+        var half = width / 2.0d;
+        var footMinX = x - half;
+        var footMaxX = x + half;
+        var footMinZ = z - half;
+        var footMaxZ = z + half;
+        var minX = (int) Math.floor(footMinX + COLLISION_EPSILON);
+        var maxX = (int) Math.floor(footMaxX - COLLISION_EPSILON);
+        var minZ = (int) Math.floor(footMinZ + COLLISION_EPSILON);
+        var maxZ = (int) Math.floor(footMaxZ - COLLISION_EPSILON);
+        var lowY = (int) Math.floor(feetY) - 1;
+        var highY = (int) Math.floor(feetY);
+        var cursor = new BlockPos.MutableBlockPos();
+
+        for (var bx = minX; bx <= maxX; bx++) {
+            for (var bz = minZ; bz <= maxZ; bz++) {
+                for (var by = lowY; by <= highY; by++) {
+                    cursor.set(bx, by, bz);
+
+                    var state = level.getBlockState(cursor);
+
+                    if (state.liquid()) {
+                        continue;
+                    }
+
+                    var shape = state.getCollisionShape(level, cursor, CollisionContext.empty());
+
+                    if (shape.isEmpty()) {
+                        continue;
+                    }
+
+                    for (var box : shape.toAabbs()) {
+                        var top = box.maxY + by;
+
+                        if (top > feetY + SURFACE_CONTACT_TOLERANCE || top < feetY - SURFACE_CONTACT_TOLERANCE) {
+                            continue;
+                        }
+
+                        if (box.maxX + bx > footMinX && box.minX + bx < footMaxX
+                                && box.maxZ + bz > footMinZ && box.minZ + bz < footMaxZ) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     boolean hasSupportAt(int x, double feetY, int z) {
