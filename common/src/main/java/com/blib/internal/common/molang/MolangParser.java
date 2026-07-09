@@ -89,8 +89,8 @@ public class MolangParser extends MathBuilder {
     }
 
     protected static MolangValue parseOneLine(
-        String expression,
-        MolangCompoundValue currentStatement
+            String expression,
+            MolangCompoundValue currentStatement
     ) {
         if (expression.startsWith(RETURN)) {
             try {
@@ -105,8 +105,8 @@ public class MolangParser extends MathBuilder {
             List<Object> symbols = INSTANCE.breakdownChars(INSTANCE.breakdown(expression));
 
             if (
-                symbols.size() >= 3 && symbols.get(0) instanceof String name && INSTANCE.isVariable(symbols.get(0))
-                    && symbols.get(1).equals("=")
+                    symbols.size() >= 3 && symbols.get(0) instanceof String name && INSTANCE.isVariable(symbols.get(0))
+                            && symbols.get(1).equals("=")
             ) {
                 symbols = symbols.subList(2, symbols.size());
                 LazyVariable variable;
@@ -229,11 +229,24 @@ public class MolangParser extends MathBuilder {
 
     @Override
     public LazyVariable getVariable(String name) {
+        // Molang allows "q." as shorthand for "query.". Without this rewrite, an expression written as
+        // "q.anim_time" resolves (via computeIfAbsent) to a brand-new orphan variable pinned at 0, while the
+        // animation engine updates "query.anim_time" beside it — so every "q."-prefixed query silently reads 0.
+        // Mirrors AzureLib fix da41ee0 (2026-07-04).
+        if (name.startsWith("q.")) {
+            name = "query." + name.substring(2);
+        }
         return VARIABLES.computeIfAbsent(name, key -> new LazyVariable(key, 0));
     }
 
     public LazyVariable getVariable(String name, MolangCompoundValue currentStatement) {
         LazyVariable variable;
+
+        // Normalize the "q." shorthand before the locals lookup as well, so shorthand and full-prefix names
+        // can never resolve to different variables depending on scope.
+        if (name.startsWith("q.")) {
+            name = "query." + name.substring(2);
+        }
 
         if (currentStatement != null) {
             variable = currentStatement.locals.get(name);
