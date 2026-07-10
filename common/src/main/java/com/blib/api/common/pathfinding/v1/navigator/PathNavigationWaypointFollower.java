@@ -180,7 +180,24 @@ final class PathNavigationWaypointFollower {
                 markFeatureUsed(PathfindingFeature.DESCENDING_STAIR_EDGE_REACH);
             }
 
-            var shouldAdvance = withinReach || enteredDropShaft || descendingStairEdgeReached || skippedAhead;
+            // Corner-overshoot rescue. Skip-ahead is deliberately disabled at corner waypoints, which forces a
+            // precision landing inside the reach box at every 90-degree bend. A fast mob steered by vanilla
+            // MoveControl (limited turn rate, always at full speed) overshoots that tight target, the target flips
+            // behind it, and it orbits the corner point forever -> spin-in-place on zigzag full-block runs where
+            // every node is a corner, and at stair/room corners. If the mob has already crossed the plane through
+            // the waypoint perpendicular to the incoming path direction (the waypoint is behind it along the path)
+            // while staying inside the path corridor and within vertical reach, the waypoint is done - advance
+            // instead of orbiting. Intermediate waypoints only; the final node is the destination and keeps its
+            // precision requirement.
+            var passedThroughWaypoint = !withinReach
+                    && !awaitingDropEntry
+                    && !descendingStairEdgeReached
+                    && !skippedAhead
+                    && withinVerticalReach
+                    && hasPassedWaypointPlane(entityX, entityZ, entityWidth, entityHeight, waypointCenter, activeReachXZ);
+
+            var shouldAdvance = withinReach || enteredDropShaft || descendingStairEdgeReached || skippedAhead
+                    || passedThroughWaypoint;
 
             if (!shouldAdvance) {
                 break;
@@ -540,6 +557,71 @@ final class PathNavigationWaypointFollower {
         }
 
         return true;
+    }
+
+    /**
+     * True when the entity has already moved past the current waypoint along the path's incoming direction — the
+     * waypoint sits behind it along the path — while remaining inside the path corridor. Geometry: take the
+     * horizontal direction from the previous waypoint to the current one; project the entity's offset from the
+     * current waypoint onto that direction. A positive along-track component up to one block means the entity
+     * crossed the waypoint's perpendicular plane this leg; the cross-track (lateral) component must stay within the
+     * reach box plus half the entity's width, so a mob that wandered off the corridor never advances this way.
+     * Applies only to intermediate waypoints with a known incoming leg; drop entries and posture changes keep their
+     * precision requirements. Vertical reach is enforced by the caller.
+     */
+    private boolean hasPassedWaypointPlane(
+            double entityX,
+            double entityZ,
+            float entityWidth,
+            float entityHeight,
+            Vec3 waypointCenter,
+            double reachXZ
+    ) {
+        var path = currentPath();
+        var index = path.getCurrentNodeIndex();
+        var nextIndex = index + 1;
+
+        if (index <= 0 || nextIndex >= path.getNodeCount()) {
+            return false;
+        }
+
+        var previousNode = path.getNode(index - 1);
+        var currentNode = path.getCurrentNode();
+
+        if (previousNode.hasDropEntryWaypoint() || currentNode.hasDropEntryWaypoint()) {
+            return false;
+        }
+
+        if (previousNode.getPosture() != currentNode.getPosture()) {
+            return false;
+        }
+
+        var previousCenter = nodeTargetCenter(previousNode, entityWidth, entityHeight);
+
+        var dirX = waypointCenter.x - previousCenter.x;
+        var dirZ = waypointCenter.z - previousCenter.z;
+        var lengthSq = dirX * dirX + dirZ * dirZ;
+
+        if (lengthSq < 1.0E-6) {
+            return false;
+        }
+
+        var length = Math.sqrt(lengthSq);
+        dirX /= length;
+        dirZ /= length;
+
+        var relX = entityX - waypointCenter.x;
+        var relZ = entityZ - waypointCenter.z;
+
+        var alongTrack = relX * dirX + relZ * dirZ;
+
+        if (alongTrack < 0.0 || alongTrack > 1.0) {
+            return false;
+        }
+
+        var crossTrack = Math.abs(relX * dirZ - relZ * dirX);
+
+        return crossTrack <= reachXZ + entityWidth / 2.0;
     }
 
     private double waypointReachXZ(float entityWidth) {
