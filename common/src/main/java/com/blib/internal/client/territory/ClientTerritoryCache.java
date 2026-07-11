@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.blib.internal.client.territory.compat.XaeroWorldMapCompat;
-import com.blib.internal.client.territory.compat.xaero.BLibChunkHighlighter;
 import com.blib.mod.common.network.packet.S2CChunkClaimsSyncPayload;
 
 @ApiStatus.Internal
@@ -57,9 +56,7 @@ public class ClientTerritoryCache {
             }
         }
 
-        if (XaeroWorldMapCompat.isLoaded()) {
-            BLibChunkHighlighter.invalidateChunk(chunkX, chunkZ);
-        }
+        XaeroWorldMapCompat.invalidateChunk(chunkX, chunkZ);
     }
 
     public void updateChunks(ResourceLocation dimension, List<S2CChunkClaimsSyncPayload.Entry> entries) {
@@ -108,9 +105,7 @@ public class ClientTerritoryCache {
             playerOwnerNamesByDimension.remove(dimension);
         }
 
-        if (XaeroWorldMapCompat.isLoaded()) {
-            BLibChunkHighlighter.invalidateAll();
-        }
+        XaeroWorldMapCompat.invalidateAll();
     }
 
     public List<ResourceLocation> getFactionIds(ResourceLocation dimension, ChunkPos pos) {

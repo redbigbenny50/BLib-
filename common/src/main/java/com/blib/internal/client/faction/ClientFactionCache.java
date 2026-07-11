@@ -9,7 +9,6 @@ import java.util.Map;
 
 import com.blib.api.common.faction.v1.ClaimMapStyle;
 import com.blib.internal.client.territory.compat.XaeroWorldMapCompat;
-import com.blib.internal.client.territory.compat.xaero.BLibChunkHighlighter;
 
 @ApiStatus.Internal
 public class ClientFactionCache {
@@ -28,9 +27,7 @@ public class ClientFactionCache {
         }
         metadataByFactionId.put(factionId, new FactionMetadata(name, color, claimMapStyle));
 
-        if (XaeroWorldMapCompat.isLoaded()) {
-            BLibChunkHighlighter.invalidateAll();
-        }
+        XaeroWorldMapCompat.invalidateAll();
     }
 
     public @Nullable FactionMetadata get(ResourceLocation factionId) {

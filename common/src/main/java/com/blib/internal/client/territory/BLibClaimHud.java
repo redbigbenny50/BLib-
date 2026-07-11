@@ -8,7 +8,6 @@ import org.jetbrains.annotations.ApiStatus;
 
 import com.blib.internal.client.faction.ClientFactionCache;
 import com.blib.internal.client.territory.compat.XaeroWorldMapCompat;
-import com.blib.internal.client.territory.compat.xaero.BLibChunkHighlighter;
 
 @ApiStatus.Internal
 public final class BLibClaimHud {
@@ -17,7 +16,7 @@ public final class BLibClaimHud {
 
     private static int ticksSinceHudUpdate = 0;
 
-    private static boolean lastBlinkPhase = BLibChunkHighlighter.contestedBlinkPhase();
+    private static boolean lastBlinkPhase = XaeroWorldMapCompat.contestedBlinkPhase();
 
     public static void tick() {
         refreshContestedBlink();
@@ -62,14 +61,14 @@ public final class BLibClaimHud {
     }
 
     private static void refreshContestedBlink() {
-        var blinkPhase = BLibChunkHighlighter.contestedBlinkPhase();
+        var blinkPhase = XaeroWorldMapCompat.contestedBlinkPhase();
         if (blinkPhase == lastBlinkPhase) {
             return;
         }
         lastBlinkPhase = blinkPhase;
 
         if (ClientTerritoryCache.INSTANCE.hasContestedClaims() && XaeroWorldMapCompat.isLoaded()) {
-            BLibChunkHighlighter.invalidateAll();
+            XaeroWorldMapCompat.invalidateAll();
         }
     }
 
