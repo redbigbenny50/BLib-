@@ -49,17 +49,17 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     private static final byte CACHE_TRUE = 2;
 
     private static final int[][] CARDINAL_OFFSETS = {
-        { -1, 0 },
-        { 1, 0 },
-        { 0, -1 },
-        { 0, 1 }
+            { -1, 0 },
+            { 1, 0 },
+            { 0, -1 },
+            { 0, 1 }
     };
 
     private static final int[][] DIAGONAL_OFFSETS = {
-        { -1, -1 },
-        { -1, 1 },
-        { 1, -1 },
-        { 1, 1 }
+            { -1, -1 },
+            { -1, 1 },
+            { 1, -1 },
+            { 1, 1 }
     };
 
     private static final int REVERSE_NEIGHBOR_SCRATCH_SIZE = 256;
@@ -93,6 +93,8 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     private final Long2ByteOpenHashMap waterFootprintCache;
 
     private final Long2ByteOpenHashMap dropSupportCache;
+
+    private final Long2ByteOpenHashMap wallProximityCache;
 
     private final Long2IntOpenHashMap supportTopSearchCache;
 
@@ -131,6 +133,7 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         this.footprintNodeSupportCache = new Long2ByteOpenHashMap();
         this.waterFootprintCache = new Long2ByteOpenHashMap();
         this.dropSupportCache = new Long2ByteOpenHashMap();
+        this.wallProximityCache = new Long2ByteOpenHashMap();
         this.supportTopSearchCache = new Long2IntOpenHashMap();
         this.stepDownLandingScanCache = new Long2LongOpenHashMap();
         this.dropOpeningLandingScanCache = new Long2LongOpenHashMap();
@@ -201,6 +204,7 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         footprintNodeSupportCache.clear();
         waterFootprintCache.clear();
         dropSupportCache.clear();
+        wallProximityCache.clear();
         supportTopSearchCache.clear();
         stepDownLandingScanCache.clear();
         dropOpeningLandingScanCache.clear();
@@ -318,8 +322,8 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
     private boolean usesWaterSwimClearance() {
         return usesWaterPathfinding()
-            && features.waterSwimClearance()
-            && config.getWaterConfig().enabled();
+                && features.waterSwimClearance()
+                && config.getWaterConfig().enabled();
     }
 
     private boolean usesWaterEntry() {
@@ -348,10 +352,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
     private boolean usesGroundBlockBreaking() {
         return currentLevel != null
-            && features.blockBreaking()
-            && config.getBlockBreakingConfig().enabled()
-            && config.getBlockBreakingConfig().maxBlocksPerEdge() > 0
-            && snapshotCosts.containsKey(TerrainType.GROUND);
+                && features.blockBreaking()
+                && config.getBlockBreakingConfig().enabled()
+                && config.getBlockBreakingConfig().maxBlocksPerEdge() > 0
+                && snapshotCosts.containsKey(TerrainType.GROUND);
     }
 
     private boolean usesFootprintScanCaching() {
@@ -359,47 +363,47 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private int appendHorizontalPredecessorCandidates(
-        PathNode node,
-        @Nullable PathNode previous,
-        PathNode[] predecessors,
-        int count,
-        int[][] offsets
+            PathNode node,
+            @Nullable PathNode previous,
+            PathNode[] predecessors,
+            int count,
+            int[][] offsets
     ) {
         for (var offset : offsets) {
             var predecessorX = node.getX() - offset[0];
             var predecessorZ = node.getZ() - offset[1];
 
             count = appendPredecessorCandidate(
-                node,
-                previous,
-                predecessors,
-                count,
-                predecessorX,
-                node.getY(),
-                predecessorZ
-            );
-
-            for (var stepUp = 1; stepUp <= config.getMaxStepHeight(); stepUp++) {
-                count = appendPredecessorCandidate(
                     node,
                     previous,
                     predecessors,
                     count,
                     predecessorX,
-                    node.getY() - stepUp,
+                    node.getY(),
                     predecessorZ
+            );
+
+            for (var stepUp = 1; stepUp <= config.getMaxStepHeight(); stepUp++) {
+                count = appendPredecessorCandidate(
+                        node,
+                        previous,
+                        predecessors,
+                        count,
+                        predecessorX,
+                        node.getY() - stepUp,
+                        predecessorZ
                 );
             }
 
             for (var stepDown = 1; stepDown <= config.getMaxFallDistance(); stepDown++) {
                 count = appendPredecessorCandidate(
-                    node,
-                    previous,
-                    predecessors,
-                    count,
-                    predecessorX,
-                    node.getY() + stepDown,
-                    predecessorZ
+                        node,
+                        previous,
+                        predecessors,
+                        count,
+                        predecessorX,
+                        node.getY() + stepDown,
+                        predecessorZ
                 );
             }
         }
@@ -408,41 +412,41 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private int appendWaterVerticalPredecessorCandidates(
-        PathNode node,
-        @Nullable PathNode previous,
-        PathNode[] predecessors,
-        int count
+            PathNode node,
+            @Nullable PathNode previous,
+            PathNode[] predecessors,
+            int count
     ) {
         if (!usesWaterVerticalSwim()) {
             return count;
         }
 
         count = appendPredecessorCandidate(
-            node,
-            previous,
-            predecessors,
-            count,
-            node.getX(),
-            node.getY() - 1,
-            node.getZ()
+                node,
+                previous,
+                predecessors,
+                count,
+                node.getX(),
+                node.getY() - 1,
+                node.getZ()
         );
 
         return appendPredecessorCandidate(
-            node,
-            previous,
-            predecessors,
-            count,
-            node.getX(),
-            node.getY() + 1,
-            node.getZ()
+                node,
+                previous,
+                predecessors,
+                count,
+                node.getX(),
+                node.getY() + 1,
+                node.getZ()
         );
     }
 
     private int appendDropOpeningPredecessorCandidates(
-        PathNode node,
-        @Nullable PathNode previous,
-        PathNode[] predecessors,
-        int count
+            PathNode node,
+            @Nullable PathNode previous,
+            PathNode[] predecessors,
+            int count
     ) {
         var horizontalDistance = dropOpeningHorizontalDistance();
         var firstDropDistance = Math.max(1, config.getMaxStepHeight() + 1);
@@ -453,13 +457,13 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
             for (var dropDistance = firstDropDistance; dropDistance <= config.getMaxFallDistance(); dropDistance++) {
                 count = appendPredecessorCandidate(
-                    node,
-                    previous,
-                    predecessors,
-                    count,
-                    predecessorX,
-                    node.getY() + dropDistance,
-                    predecessorZ
+                        node,
+                        previous,
+                        predecessors,
+                        count,
+                        predecessorX,
+                        node.getY() + dropDistance,
+                        predecessorZ
                 );
             }
         }
@@ -468,13 +472,13 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private int appendPredecessorCandidate(
-        PathNode node,
-        @Nullable PathNode previous,
-        PathNode[] predecessors,
-        int count,
-        int candidateX,
-        int candidateY,
-        int candidateZ
+            PathNode node,
+            @Nullable PathNode previous,
+            PathNode[] predecessors,
+            int count,
+            int candidateX,
+            int candidateY,
+            int candidateZ
     ) {
         if (count >= predecessors.length) {
             return count;
@@ -483,10 +487,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         var candidate = getPreferredNode(candidateX, candidateY, candidateZ);
 
         if (
-            candidate == null
-                || candidate.equals(node)
-                || isParentCandidate(previous, candidate)
-                || containsNode(predecessors, count, candidate)
+                candidate == null
+                        || candidate.equals(node)
+                        || isParentCandidate(previous, candidate)
+                        || containsNode(predecessors, count, candidate)
         ) {
             return count;
         }
@@ -518,27 +522,27 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private boolean isParentNode(
-        @Nullable PathNode previous,
-        int x,
-        int y,
-        int z,
-        TerrainType terrainType,
-        PathPosture posture
+            @Nullable PathNode previous,
+            int x,
+            int y,
+            int z,
+            TerrainType terrainType,
+            PathPosture posture
     ) {
         return previous != null
-            && previous.getX() == x
-            && previous.getY() == y
-            && previous.getZ() == z
-            && previous.getTerrainType() == terrainType
-            && previous.getPosture() == posture;
+                && previous.getX() == x
+                && previous.getY() == y
+                && previous.getZ() == z
+                && previous.getTerrainType() == terrainType
+                && previous.getPosture() == posture;
     }
 
     private int appendWaterNeighbors(
-        PathNode node,
-        @Nullable PathNode previous,
-        PathNode[] neighbors,
-        int count,
-        int[][] offsets
+            PathNode node,
+            @Nullable PathNode previous,
+            PathNode[] neighbors,
+            int count,
+            int[][] offsets
     ) {
         for (var offset : offsets) {
             var groundExit = findWaterExitNeighbor(node, previous, offset[0], offset[1]);
@@ -554,22 +558,22 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private int appendWaterVerticalNeighbors(
-        PathNode node,
-        @Nullable PathNode previous,
-        PathNode[] neighbors,
-        int count
+            PathNode node,
+            @Nullable PathNode previous,
+            PathNode[] neighbors,
+            int count
     ) {
         if (isParentNode(previous, node.getX(), node.getY() + 1, node.getZ(), TerrainType.WATER, waterPosture())) {
             markFeatureUsed(PathfindingFeature.PARENT_EDGE_PRUNING);
         } else {
             var swimUp = tryWaterMovementNeighbor(
-                node,
-                node.getX(),
-                node.getY() + 1,
-                node.getZ(),
-                0,
-                0,
-                PathfindingFeature.WATER_VERTICAL_SWIM
+                    node,
+                    node.getX(),
+                    node.getY() + 1,
+                    node.getZ(),
+                    0,
+                    0,
+                    PathfindingFeature.WATER_VERTICAL_SWIM
             );
 
             count = appendNeighbor(neighbors, count, previous, swimUp);
@@ -579,13 +583,13 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
             markFeatureUsed(PathfindingFeature.PARENT_EDGE_PRUNING);
         } else {
             var swimDown = tryWaterMovementNeighbor(
-                node,
-                node.getX(),
-                node.getY() - 1,
-                node.getZ(),
-                0,
-                0,
-                PathfindingFeature.WATER_VERTICAL_SWIM
+                    node,
+                    node.getX(),
+                    node.getY() - 1,
+                    node.getZ(),
+                    0,
+                    0,
+                    PathfindingFeature.WATER_VERTICAL_SWIM
             );
 
             count = appendNeighbor(neighbors, count, previous, swimDown);
@@ -595,11 +599,11 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private int appendGroundNeighbors(
-        PathNode node,
-        @Nullable PathNode previous,
-        PathNode[] neighbors,
-        int count,
-        int[][] offsets
+            PathNode node,
+            @Nullable PathNode previous,
+            PathNode[] neighbors,
+            int count,
+            int[][] offsets
     ) {
         for (var offset : offsets) {
             count = appendGroundNeighborCandidates(node, previous, neighbors, count, offset[0], offset[1]);
@@ -609,10 +613,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private int appendDropOpeningNeighbors(
-        PathNode node,
-        @Nullable PathNode previous,
-        PathNode[] neighbors,
-        int count
+            PathNode node,
+            @Nullable PathNode previous,
+            PathNode[] neighbors,
+            int count
     ) {
         for (var offset : CARDINAL_OFFSETS) {
             var neighbor = findDropOpeningNeighbor(node, previous, offset[0], offset[1]);
@@ -630,13 +634,13 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
             markFeatureUsed(PathfindingFeature.PARENT_EDGE_PRUNING);
         } else {
             var sameLevel = tryWaterMovementNeighbor(
-                from,
-                x,
-                from.getY(),
-                z,
-                dx,
-                dz,
-                PathfindingFeature.WATER_PATHFINDING
+                    from,
+                    x,
+                    from.getY(),
+                    z,
+                    dx,
+                    dz,
+                    PathfindingFeature.WATER_PATHFINDING
             );
 
             if (sameLevel != null) {
@@ -652,13 +656,13 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
             markFeatureUsed(PathfindingFeature.PARENT_EDGE_PRUNING);
         } else {
             var swimUp = tryWaterMovementNeighbor(
-                from,
-                x,
-                from.getY() + 1,
-                z,
-                dx,
-                dz,
-                PathfindingFeature.WATER_SLOPE_SWIM
+                    from,
+                    x,
+                    from.getY() + 1,
+                    z,
+                    dx,
+                    dz,
+                    PathfindingFeature.WATER_SLOPE_SWIM
             );
 
             if (swimUp != null) {
@@ -707,13 +711,13 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private @Nullable PathNode tryGroundExitNeighbor(
-        PathNode from,
-        @Nullable PathNode previous,
-        int x,
-        int y,
-        int z,
-        int dx,
-        int dz
+            PathNode from,
+            @Nullable PathNode previous,
+            int x,
+            int y,
+            int z,
+            int dx,
+            int dz
     ) {
         if (isParentNode(previous, x, y, z, TerrainType.GROUND, PathPosture.STANDING)) {
             markFeatureUsed(PathfindingFeature.PARENT_EDGE_PRUNING);
@@ -733,13 +737,13 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private @Nullable PathNode tryWaterMovementNeighbor(
-        PathNode from,
-        int x,
-        int y,
-        int z,
-        int dx,
-        int dz,
-        PathfindingFeature feature
+            PathNode from,
+            int x,
+            int y,
+            int z,
+            int dx,
+            int dz,
+            PathfindingFeature feature
     ) {
         beginEdgeAttempt(from, x, y, z, waterEdgeType(from, y, feature));
         var water = tryCreateWaterNode(x, y, z);
@@ -754,12 +758,12 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private int appendGroundNeighborCandidates(
-        PathNode from,
-        @Nullable PathNode previous,
-        PathNode[] neighbors,
-        int count,
-        int dx,
-        int dz
+            PathNode from,
+            @Nullable PathNode previous,
+            PathNode[] neighbors,
+            int count,
+            int dx,
+            int dz
     ) {
         var x = from.getX() + dx;
         var z = from.getZ() + dz;
@@ -775,10 +779,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
                 if (sameLevel != null && hasMovementClearance(from, sameLevel, dx, dz)) {
                     finishEdgeAttempt(true);
                     count = appendNeighbor(
-                        neighbors,
-                        count,
-                        previous,
-                        markMovementFeatureUsed(sameLevel, dx, dz, PathfindingFeature.SAME_LEVEL_MOVEMENT)
+                            neighbors,
+                            count,
+                            previous,
+                            markMovementFeatureUsed(sameLevel, dx, dz, PathfindingFeature.SAME_LEVEL_MOVEMENT)
                     );
                     sameLevelAccepted = true;
                 } else {
@@ -791,15 +795,15 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
                     if (breakableSameLevel != null && hasMovementClearance(from, breakableSameLevel, dx, dz)) {
                         finishEdgeAttempt(true);
                         count = appendNeighbor(
-                            neighbors,
-                            count,
-                            previous,
-                            markMovementFeatureUsed(
-                                breakableSameLevel,
-                                dx,
-                                dz,
-                                PathfindingFeature.SAME_LEVEL_MOVEMENT
-                            )
+                                neighbors,
+                                count,
+                                previous,
+                                markMovementFeatureUsed(
+                                        breakableSameLevel,
+                                        dx,
+                                        dz,
+                                        PathfindingFeature.SAME_LEVEL_MOVEMENT
+                                )
                         );
                     } else {
                         finishEdgeAttempt(false);
@@ -823,10 +827,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
                 if (steppedUp != null && hasMovementClearance(from, steppedUp, dx, dz)) {
                     finishEdgeAttempt(true);
                     count = appendNeighbor(
-                        neighbors,
-                        count,
-                        previous,
-                        markMovementFeatureUsed(steppedUp, dx, dz, PathfindingFeature.STEP_UP)
+                            neighbors,
+                            count,
+                            previous,
+                            markMovementFeatureUsed(steppedUp, dx, dz, PathfindingFeature.STEP_UP)
                     );
                 } else {
                     finishEdgeAttempt(false);
@@ -854,10 +858,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
                 } else if (hasMovementClearance(from, steppedDown, dx, dz)) {
                     finishEdgeAttempt(true);
                     count = appendNeighbor(
-                        neighbors,
-                        count,
-                        previous,
-                        markMovementFeatureUsed(steppedDown, dx, dz, PathfindingFeature.STEP_DOWN)
+                            neighbors,
+                            count,
+                            previous,
+                            markMovementFeatureUsed(steppedDown, dx, dz, PathfindingFeature.STEP_DOWN)
                     );
                 } else {
                     finishEdgeAttempt(false);
@@ -913,10 +917,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private int appendNeighbor(
-        PathNode[] neighbors,
-        int count,
-        @Nullable PathNode previous,
-        @Nullable PathNode neighbor
+            PathNode[] neighbors,
+            int count,
+            @Nullable PathNode previous,
+            @Nullable PathNode neighbor
     ) {
         if (isParentCandidate(previous, neighbor)) {
             markFeatureUsed(PathfindingFeature.PARENT_EDGE_PRUNING);
@@ -1028,13 +1032,13 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         for (var stepDown = 1; stepDown <= config.getMaxFallDistance(); stepDown++) {
             var y = from.getY() - stepDown;
             var steppedDown = tryWaterEntryNeighbor(
-                from,
-                previous,
-                x,
-                y,
-                z,
-                dx,
-                dz
+                    from,
+                    previous,
+                    x,
+                    y,
+                    z,
+                    dx,
+                    dz
             );
 
             if (steppedDown != null) {
@@ -1048,13 +1052,13 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
         for (var stepUp = 1; stepUp <= config.getMaxStepHeight(); stepUp++) {
             var steppedUp = tryWaterEntryNeighbor(
-                from,
-                previous,
-                x,
-                from.getY() + stepUp,
-                z,
-                dx,
-                dz
+                    from,
+                    previous,
+                    x,
+                    from.getY() + stepUp,
+                    z,
+                    dx,
+                    dz
             );
 
             if (steppedUp != null) {
@@ -1066,13 +1070,13 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private @Nullable PathNode tryWaterEntryNeighbor(
-        PathNode from,
-        @Nullable PathNode previous,
-        int x,
-        int y,
-        int z,
-        int dx,
-        int dz
+            PathNode from,
+            @Nullable PathNode previous,
+            int x,
+            int y,
+            int z,
+            int dx,
+            int dz
     ) {
         if (isParentNode(previous, x, y, z, TerrainType.WATER, waterPosture())) {
             markFeatureUsed(PathfindingFeature.PARENT_EDGE_PRUNING);
@@ -1165,11 +1169,11 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
         if (usesFootprintScanCaching()) {
             return cachedFootprintBoolean(
-                dropSupportCache,
-                x,
-                supportTopY,
-                z,
-                () -> hasDropSupportAtUncached(x, supportTopY, z, supportSize)
+                    dropSupportCache,
+                    x,
+                    supportTopY,
+                    z,
+                    () -> hasDropSupportAtUncached(x, supportTopY, z, supportSize)
             );
         }
 
@@ -1190,9 +1194,9 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
     private boolean hasMovementClearance(PathNode from, PathNode to, int dx, int dz) {
         if (
-            features.horizontalDiagonalClearance()
-                && dx != 0
-                && dz != 0
+                features.horizontalDiagonalClearance()
+                        && dx != 0
+                        && dz != 0
         ) {
             markFeatureUsed(PathfindingFeature.HORIZONTAL_DIAGONAL_CLEARANCE);
 
@@ -1203,8 +1207,8 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         }
 
         if (
-            features.verticalDiagonalClearance()
-                && isVerticalDiagonalTransition(from, to, dx, dz)
+                features.verticalDiagonalClearance()
+                        && isVerticalDiagonalTransition(from, to, dx, dz)
         ) {
             markFeatureUsed(PathfindingFeature.VERTICAL_DIAGONAL_CLEARANCE);
 
@@ -1215,8 +1219,8 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         }
 
         if (
-            features.diagonalSweptShapeClearance()
-                && isSameLevelHorizontalDiagonalMovement(from, to, dx, dz)
+                features.diagonalSweptShapeClearance()
+                        && isSameLevelHorizontalDiagonalMovement(from, to, dx, dz)
         ) {
             markFeatureUsed(PathfindingFeature.DIAGONAL_SWEPT_SHAPE_CLEARANCE);
 
@@ -1240,7 +1244,7 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
     private boolean isVerticalDiagonalTransition(PathNode from, PathNode to, int dx, int dz) {
         return from.getY() != to.getY()
-            && (dx != 0 || dz != 0);
+                && (dx != 0 || dz != 0);
     }
 
     private boolean hasHorizontalFullBlockDiagonalCorner(PathNode from, PathNode to, int dx, int dz) {
@@ -1266,8 +1270,8 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
             for (var sideBY = minSideBY; sideBY <= maxSideBY; sideBY++) {
                 if (
-                    isVerticalCardinalCorner(bodyMinY, bodyMaxY, sideAY, sideBY)
-                        && isFullCollisionBlock(sideBX, sideBY, sideBZ)
+                        isVerticalCardinalCorner(bodyMinY, bodyMaxY, sideAY, sideBY)
+                                && isFullCollisionBlock(sideBX, sideBY, sideBZ)
                 ) {
                     return true;
                 }
@@ -1279,7 +1283,7 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
     private boolean hasVerticalFullBlockDiagonalCorner(PathNode from, PathNode to, int dx, int dz) {
         return hasAxisAlignedVerticalFullBlockCorner(from, to, dx, dz)
-            || (dx != 0 && dz != 0 && hasTopHorizontalAxisFullBlockCorner(from, to, dx, dz));
+                || (dx != 0 && dz != 0 && hasTopHorizontalAxisFullBlockCorner(from, to, dx, dz));
     }
 
     private boolean hasAxisAlignedVerticalFullBlockCorner(PathNode from, PathNode to, int dx, int dz) {
@@ -1334,16 +1338,16 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private boolean hasAxisAlignedVerticalCornerPair(
-        int lowCeilingX,
-        int lowCeilingY,
-        int lowCeilingZ,
-        int highFloorX,
-        int highFloorY,
-        int highFloorZ
+            int lowCeilingX,
+            int lowCeilingY,
+            int lowCeilingZ,
+            int highFloorX,
+            int highFloorY,
+            int highFloorZ
     ) {
         if (
-            !isFullCollisionBlock(lowCeilingX, lowCeilingY, lowCeilingZ)
-                || !isFullCollisionBlock(highFloorX, highFloorY, highFloorZ)
+                !isFullCollisionBlock(lowCeilingX, lowCeilingY, lowCeilingZ)
+                        || !isFullCollisionBlock(highFloorX, highFloorY, highFloorZ)
         ) {
             return false;
         }
@@ -1372,8 +1376,8 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
         for (var sideY = bodyMinY; sideY <= bodyMaxY; sideY++) {
             if (
-                (dx != 0 && hasFullBlockAtHorizontalXFace(from, to, dx, sideY))
-                    || (dz != 0 && hasFullBlockAtHorizontalZFace(from, to, dz, sideY))
+                    (dx != 0 && hasFullBlockAtHorizontalXFace(from, to, dx, sideY))
+                            || (dz != 0 && hasFullBlockAtHorizontalZFace(from, to, dz, sideY))
             ) {
                 return true;
             }
@@ -1493,8 +1497,8 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
             var centerZ = startZ + dz * progress;
 
             if (
-                !isEntityBoxClear(centerX, feetY, centerZ, entityWidth, entityHeight, allowLiquids)
-                    || !hasAnySteppedFootprintSupport(centerX, feetY, centerZ)
+                    !isEntityBoxClear(centerX, feetY, centerZ, entityWidth, entityHeight, allowLiquids)
+                            || !hasAnySteppedFootprintSupport(centerX, feetY, centerZ)
             ) {
                 return false;
             }
@@ -1505,8 +1509,8 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
     private boolean isSameLevelHorizontalDiagonalMovement(PathNode from, PathNode to, int dx, int dz) {
         return dx != 0
-            && dz != 0
-            && from.getY() == to.getY();
+                && dz != 0
+                && from.getY() == to.getY();
     }
 
     private boolean hasSweptDiagonalCollision(PathNode from, PathNode to, boolean allowLiquids) {
@@ -1589,16 +1593,16 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         var exitTime = Math.min(xSweep.exitTime(), Math.min(ySweep.exitTime(), zSweep.exitTime()));
 
         return entryTime <= exitTime
-            && exitTime >= -COLLISION_EPSILON
-            && entryTime <= 1.0d + COLLISION_EPSILON;
+                && exitTime >= -COLLISION_EPSILON
+                && entryTime <= 1.0d + COLLISION_EPSILON;
     }
 
     private @Nullable AxisSweep sweepAxis(
-        double movingMin,
-        double movingMax,
-        double staticMin,
-        double staticMax,
-        double delta
+            double movingMin,
+            double movingMax,
+            double staticMin,
+            double staticMax,
+            double delta
     ) {
         if (Math.abs(delta) <= COLLISION_EPSILON) {
             if (movingMax <= staticMin + COLLISION_EPSILON || movingMin >= staticMax - COLLISION_EPSILON) {
@@ -1610,47 +1614,47 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
         if (delta > 0.0d) {
             return new AxisSweep(
-                (staticMin - movingMax) / delta,
-                (staticMax - movingMin) / delta
+                    (staticMin - movingMax) / delta,
+                    (staticMax - movingMin) / delta
             );
         }
 
         return new AxisSweep(
-            (staticMax - movingMin) / delta,
-            (staticMin - movingMax) / delta
+                (staticMax - movingMin) / delta,
+                (staticMin - movingMax) / delta
         );
     }
 
     private record AxisSweep(
-        double entryTime,
-        double exitTime
+            double entryTime,
+            double exitTime
     ) {
 
         private static final AxisSweep ALWAYS_OVERLAPPING = new AxisSweep(
-            Double.NEGATIVE_INFINITY,
-            Double.POSITIVE_INFINITY
+                Double.NEGATIVE_INFINITY,
+                Double.POSITIVE_INFINITY
         );
     }
 
     private record EntityBoxClearanceKey(
-        long centerX,
-        long feetY,
-        long centerZ,
-        long entityWidth,
-        long entityHeight,
-        boolean allowLiquids
+            long centerX,
+            long feetY,
+            long centerZ,
+            long entityWidth,
+            long entityHeight,
+            boolean allowLiquids
     ) {}
 
     private record FootprintScanKey(
-        long centerX,
-        long feetY,
-        long centerZ,
-        boolean requireNominalSupport
+            long centerX,
+            long feetY,
+            long centerZ,
+            boolean requireNominalSupport
     ) {}
 
     private record StepDownLandingScan(
-        int y,
-        int type
+            int y,
+            int type
     ) {
 
         private static StepDownLandingScan noLanding() {
@@ -1671,8 +1675,8 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private record GroundCandidate(
-        @Nullable PathNode node,
-        boolean blocksFurtherStepDown
+            @Nullable PathNode node,
+            boolean blocksFurtherStepDown
     ) {
 
         private static GroundCandidate accepted(PathNode node) {
@@ -1689,8 +1693,8 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private record BlockBreakCandidate(
-        PathBlockBreakPlan plan,
-        float costMalus
+            PathBlockBreakPlan plan,
+            float costMalus
     ) {}
 
     private boolean isEntityBoxClear(double centerX, double feetY, double centerZ, double entityWidth, double entityHeight) {
@@ -1698,23 +1702,23 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private boolean isEntityBoxClear(
-        double centerX,
-        double feetY,
-        double centerZ,
-        double entityWidth,
-        double entityHeight,
-        boolean allowLiquids
+            double centerX,
+            double feetY,
+            double centerZ,
+            double entityWidth,
+            double entityHeight,
+            boolean allowLiquids
     ) {
         if (usesSearchCaching()) {
             markFeatureUsed(PathfindingFeature.SEARCH_CACHING);
 
             var key = new EntityBoxClearanceKey(
-                Double.doubleToLongBits(centerX),
-                Double.doubleToLongBits(feetY),
-                Double.doubleToLongBits(centerZ),
-                Double.doubleToLongBits(entityWidth),
-                Double.doubleToLongBits(entityHeight),
-                allowLiquids
+                    Double.doubleToLongBits(centerX),
+                    Double.doubleToLongBits(feetY),
+                    Double.doubleToLongBits(centerZ),
+                    Double.doubleToLongBits(entityWidth),
+                    Double.doubleToLongBits(entityHeight),
+                    allowLiquids
             );
             var cached = entityBoxClearanceCache.get(key);
 
@@ -1732,12 +1736,12 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private boolean isEntityBoxClearUncached(
-        double centerX,
-        double feetY,
-        double centerZ,
-        double entityWidth,
-        double entityHeight,
-        boolean allowLiquids
+            double centerX,
+            double feetY,
+            double centerZ,
+            double entityWidth,
+            double entityHeight,
+            boolean allowLiquids
     ) {
         var entityBox = entityBox(centerX, feetY, centerZ, entityWidth, entityHeight);
 
@@ -1789,12 +1793,12 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         var halfWidth = entityWidth / 2.0d;
 
         return new AABB(
-            centerX - halfWidth,
-            feetY,
-            centerZ - halfWidth,
-            centerX + halfWidth,
-            feetY + entityHeight,
-            centerZ + halfWidth
+                centerX - halfWidth,
+                feetY,
+                centerZ - halfWidth,
+                centerX + halfWidth,
+                feetY + entityHeight,
+                centerZ + halfWidth
         ).deflate(COLLISION_EPSILON, 0.0, COLLISION_EPSILON);
     }
 
@@ -1858,10 +1862,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
     private boolean usesEntityHitboxClearance(PathPosture posture) {
         return posture.isCrawling()
-            || posture.isSwimming()
-            || usesCrawling()
-            || features.entityHitboxClearance()
-            || usesFootprintClearance();
+                || posture.isSwimming()
+                || usesCrawling()
+                || features.entityHitboxClearance()
+                || usesFootprintClearance();
     }
 
     private boolean usesCrawling() {
@@ -1888,8 +1892,8 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
     private boolean usesSteppedFootprintSupport() {
         return usesFootprintClearance()
-            && features.steppedFootprintSupport()
-            && config.getMaxStepHeight() > 0;
+                && features.steppedFootprintSupport()
+                && config.getMaxStepHeight() > 0;
     }
 
     private @Nullable PathNode tryCreateGroundNode(int x, int y, int z) {
@@ -1978,12 +1982,12 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private @Nullable PathNode tryCreateSameLevelBlockBreakingGroundNode(
-        PathNode from,
-        int x,
-        int y,
-        int z,
-        int dx,
-        int dz
+            PathNode from,
+            int x,
+            int y,
+            int z,
+            int dx,
+            int dz
     ) {
         if (currentLevel == null || from.getTerrainType() != TerrainType.GROUND || from.getY() != y) {
             return null;
@@ -2022,10 +2026,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private @Nullable BlockBreakCandidate collectGroundBlockBreakCandidate(
-        int x,
-        int y,
-        int z,
-        PathPosture posture
+            int x,
+            int y,
+            int z,
+            PathPosture posture
     ) {
         var level = currentLevel;
 
@@ -2042,25 +2046,25 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         markEntityBoxClearanceUsed(posture);
 
         return collectEntityBoxBlockBreakCandidate(
-            level,
-            breakConfig,
-            nodeCenterX(x),
-            y,
-            nodeCenterZ(z),
-            entityWidth(),
-            entityHeight(posture),
-            x,
-            y,
-            z
+                level,
+                breakConfig,
+                nodeCenterX(x),
+                y,
+                nodeCenterZ(z),
+                entityWidth(),
+                entityHeight(posture),
+                x,
+                y,
+                z
         );
     }
 
     private @Nullable BlockBreakCandidate collectFeetBlockBreakCandidate(
-        LevelReader level,
-        PathBlockBreakingConfig breakConfig,
-        int x,
-        int y,
-        int z
+            LevelReader level,
+            PathBlockBreakingConfig breakConfig,
+            int x,
+            int y,
+            int z
     ) {
         var state = blockAccessor.getBlockState(x, y, z);
 
@@ -2089,16 +2093,16 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private @Nullable BlockBreakCandidate collectEntityBoxBlockBreakCandidate(
-        LevelReader level,
-        PathBlockBreakingConfig breakConfig,
-        double centerX,
-        double feetY,
-        double centerZ,
-        double entityWidth,
-        double entityHeight,
-        int nodeX,
-        int nodeY,
-        int nodeZ
+            LevelReader level,
+            PathBlockBreakingConfig breakConfig,
+            double centerX,
+            double feetY,
+            double centerZ,
+            double entityWidth,
+            double entityHeight,
+            int nodeX,
+            int nodeY,
+            int nodeZ
     ) {
         var entityBox = entityBox(centerX, feetY, centerZ, entityWidth, entityHeight);
         var minX = (int) Math.floor(entityBox.minX);
@@ -2160,10 +2164,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private PathRejectionReason blockBreakRejectionReason(
-        LevelReader level,
-        BlockPos pos,
-        BlockState state,
-        PathBlockBreakingConfig breakConfig
+            LevelReader level,
+            BlockPos pos,
+            BlockState state,
+            PathBlockBreakingConfig breakConfig
     ) {
         if (!breakConfig.enabled() || breakConfig.maxBlocksPerEdge() <= 0) {
             return PathRejectionReason.BLOCK_BREAK_DISABLED;
@@ -2224,7 +2228,9 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         var node = nodePool.getOrCreate(x, y, z, TerrainType.GROUND, posture);
         var supportSize = usesFootprintClearance() ? footprintCellWidth() : 1;
 
-        node.setPendingTraversal(posture.isCrawling() ? config.getCrawlConfig().crawlCostMalus() : 0.0f);
+        var baseMalus = posture.isCrawling() ? config.getCrawlConfig().crawlCostMalus() : wallProximityMalus(x, y, z);
+
+        node.setPendingTraversal(baseMalus);
         node.setStableGround(x, y - 1, z, supportSize, supportSize);
 
         if (posture.isCrawling()) {
@@ -2232,6 +2238,65 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         }
 
         return node;
+    }
+
+    /**
+     * Soft cost for standing ground nodes that sit directly beside a wall, so the planner prefers the center of a
+     * walkway (or at least a one-block gap from walls) whenever an only-slightly-longer lane exists. This is what
+     * stops paths hugging the inner face of tunnel corners, where the entity's bounding box rubs the corner block,
+     * collision keeps deflecting it off its waypoints, and near-equal inner-lane route ties flip on every repath —
+     * the left/right/turn shuffle at bends. A "wall" is a cardinal neighbor solid at both feet and head height:
+     * two-high obstruction. Floor steps, slabs, and other single-height terrain beside the node deliberately don't
+     * count, so staircases and uneven ground aren't repelled. Doors the entity can pass (open, or closed while it
+     * can open doors) don't count either — only a genuinely impassable closed door reads as wall, where repelling is
+     * correct. Crawl-posture nodes are exempt at the call site (gap-crawl spaces are wall-tight by nature). Soft
+     * cost only — narrow one-wide corridors remain fully traversable, and in uniform two-wide tunnels both lanes
+     * carry the same malus so route choice is unaffected. The per-side cost comes from
+     * {@link TerrainEvaluatorConfig#getWallAdjacencyMalus()}; zero disables the probe entirely. Wall-side counts are
+     * cached per search position, matching the evaluator's other spatial caches.
+     */
+    private float wallProximityMalus(int x, int y, int z) {
+        var perSideMalus = config.getWallAdjacencyMalus();
+
+        if (perSideMalus <= 0.0f) {
+            return 0.0f;
+        }
+
+        return wallProximitySideCount(x, y, z) * perSideMalus;
+    }
+
+    private int wallProximitySideCount(int x, int y, int z) {
+        markFeatureUsed(PathfindingFeature.SEARCH_CACHING);
+
+        var key = packBlockKey(x, y, z);
+        var cached = wallProximityCache.get(key);
+
+        if (cached != 0) {
+            return cached - 1;
+        }
+
+        var count = 0;
+
+        for (var direction : CARDINAL_OFFSETS) {
+            var nx = x + direction[0];
+            var nz = z + direction[1];
+
+            var feetState = blockAccessor.getBlockState(nx, y, nz);
+
+            if (!blockAccessor.isSolid(feetState) || isDoorPassable(feetState)) {
+                continue;
+            }
+
+            var headState = blockAccessor.getBlockState(nx, y + 1, nz);
+
+            if (blockAccessor.isSolid(headState) && !isDoorPassable(headState)) {
+                count++;
+            }
+        }
+
+        wallProximityCache.put(key, (byte) (count + 1));
+
+        return count;
     }
 
     private PathNode getOrCreateWaterNode(int x, int y, int z) {
@@ -2365,11 +2430,11 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
         if (usesFootprintScanCaching()) {
             return cachedFootprintBoolean(
-                waterFootprintCache,
-                x,
-                y,
-                z,
-                () -> hasWaterFootprintUncached(x, y, z, footprintWidth)
+                    waterFootprintCache,
+                    x,
+                    y,
+                    z,
+                    () -> hasWaterFootprintUncached(x, y, z, footprintWidth)
             );
         }
 
@@ -2381,11 +2446,11 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
         if (usesFootprintScanCaching()) {
             return cachedFootprintBoolean(
-                waterFootprintCache,
-                x,
-                y,
-                z,
-                () -> hasWaterFootprintUncached(x, y, z, footprintWidth)
+                    waterFootprintCache,
+                    x,
+                    y,
+                    z,
+                    () -> hasWaterFootprintUncached(x, y, z, footprintWidth)
             );
         }
 
@@ -2433,7 +2498,7 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
         }
 
         var passable = !blockAccessor.isSolid(state)
-            && (!blockAccessor.isLiquid(state) || blockAccessor.isWater(state));
+                && (!blockAccessor.isLiquid(state) || blockAccessor.isWater(state));
 
         if (!passable) {
             recordBlockingBlock(x, y, z, PathRejectionReason.NO_CLEARANCE);
@@ -2527,11 +2592,11 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
         if (usesFootprintScanCaching()) {
             return cachedFootprintBoolean(
-                footprintNodeSupportCache,
-                x,
-                y,
-                z,
-                () -> hasFootprintNodeSupportUncached(x, y, z)
+                    footprintNodeSupportCache,
+                    x,
+                    y,
+                    z,
+                    () -> hasFootprintNodeSupportUncached(x, y, z)
             );
         }
 
@@ -2563,12 +2628,12 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     private boolean hasSteppedFootprintSupport(double centerX, double feetY, double centerZ, boolean requireNominalSupport) {
         if (usesFootprintScanCaching()) {
             return cachedFootprintScan(
-                steppedFootprintSupportCache,
-                centerX,
-                feetY,
-                centerZ,
-                requireNominalSupport,
-                () -> hasSteppedFootprintSupportUncached(centerX, feetY, centerZ, requireNominalSupport)
+                    steppedFootprintSupportCache,
+                    centerX,
+                    feetY,
+                    centerZ,
+                    requireNominalSupport,
+                    () -> hasSteppedFootprintSupportUncached(centerX, feetY, centerZ, requireNominalSupport)
             );
         }
 
@@ -2576,10 +2641,10 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private boolean hasSteppedFootprintSupportUncached(
-        double centerX,
-        double feetY,
-        double centerZ,
-        boolean requireNominalSupport
+            double centerX,
+            double feetY,
+            double centerZ,
+            boolean requireNominalSupport
     ) {
         var halfWidth = entityWidth() / 2.0d;
         var minX = (int) Math.floor(centerX - halfWidth + COLLISION_EPSILON);
@@ -2612,12 +2677,12 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     private boolean hasAnySteppedFootprintSupport(double centerX, double feetY, double centerZ) {
         if (usesFootprintScanCaching()) {
             return cachedFootprintScan(
-                anySteppedFootprintSupportCache,
-                centerX,
-                feetY,
-                centerZ,
-                false,
-                () -> hasAnySteppedFootprintSupportUncached(centerX, feetY, centerZ)
+                    anySteppedFootprintSupportCache,
+                    centerX,
+                    feetY,
+                    centerZ,
+                    false,
+                    () -> hasAnySteppedFootprintSupportUncached(centerX, feetY, centerZ)
             );
         }
 
@@ -2701,12 +2766,12 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
 
         var blockPos = new BlockPos(x, supportY, z);
         var supportProbe = new AABB(
-            x + COLLISION_EPSILON,
-            supportTopY - COLLISION_EPSILON,
-            z + COLLISION_EPSILON,
-            x + 1.0d - COLLISION_EPSILON,
-            supportTopY + COLLISION_EPSILON,
-            z + 1.0d - COLLISION_EPSILON
+                x + COLLISION_EPSILON,
+                supportTopY - COLLISION_EPSILON,
+                z + COLLISION_EPSILON,
+                x + 1.0d - COLLISION_EPSILON,
+                supportTopY + COLLISION_EPSILON,
+                z + 1.0d - COLLISION_EPSILON
         );
 
         for (var blockBox : shape.toAabbs()) {
@@ -2759,20 +2824,20 @@ public final class UnifiedTerrainEvaluator implements TerrainEvaluator {
     }
 
     private boolean cachedFootprintScan(
-        Map<FootprintScanKey, Boolean> cache,
-        double centerX,
-        double feetY,
-        double centerZ,
-        boolean requireNominalSupport,
-        BooleanSupplier loader
+            Map<FootprintScanKey, Boolean> cache,
+            double centerX,
+            double feetY,
+            double centerZ,
+            boolean requireNominalSupport,
+            BooleanSupplier loader
     ) {
         markFeatureUsed(PathfindingFeature.FOOTPRINT_SCAN_CACHE);
 
         var key = new FootprintScanKey(
-            Double.doubleToLongBits(centerX),
-            Double.doubleToLongBits(feetY),
-            Double.doubleToLongBits(centerZ),
-            requireNominalSupport
+                Double.doubleToLongBits(centerX),
+                Double.doubleToLongBits(feetY),
+                Double.doubleToLongBits(centerZ),
+                requireNominalSupport
         );
         var cached = cache.get(key);
 

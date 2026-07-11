@@ -24,6 +24,8 @@ public final class TerrainEvaluatorConfig {
 
     private static final int DEFAULT_ENTITY_HEIGHT = 2;
 
+    private static final float DEFAULT_WALL_ADJACENCY_MALUS = 0.5f;
+
     private final Map<TerrainType, Supplier<Float>> terrainCostSuppliers;
 
     private final TerrainClassifier terrainClassifier;
@@ -48,19 +50,22 @@ public final class TerrainEvaluatorConfig {
 
     private final PathBlockBreakingConfig blockBreakingConfig;
 
+    private final float wallAdjacencyMalus;
+
     private TerrainEvaluatorConfig(
-        Map<TerrainType, Supplier<Float>> terrainCostSuppliers,
-        TerrainClassifier terrainClassifier,
-        int entityWidth,
-        int entityHeight,
-        int maxFallDistance,
-        int maxStepHeight,
-        boolean canOpenDoors,
-        boolean canWalkOverFences,
-        boolean canFly,
-        PathCrawlConfig crawlConfig,
-        PathWaterConfig waterConfig,
-        PathBlockBreakingConfig blockBreakingConfig
+            Map<TerrainType, Supplier<Float>> terrainCostSuppliers,
+            TerrainClassifier terrainClassifier,
+            int entityWidth,
+            int entityHeight,
+            int maxFallDistance,
+            int maxStepHeight,
+            boolean canOpenDoors,
+            boolean canWalkOverFences,
+            boolean canFly,
+            PathCrawlConfig crawlConfig,
+            PathWaterConfig waterConfig,
+            PathBlockBreakingConfig blockBreakingConfig,
+            float wallAdjacencyMalus
     ) {
         this.terrainCostSuppliers = Map.copyOf(terrainCostSuppliers);
         this.terrainClassifier = terrainClassifier;
@@ -74,6 +79,7 @@ public final class TerrainEvaluatorConfig {
         this.crawlConfig = crawlConfig != null ? crawlConfig : PathCrawlConfig.DISABLED;
         this.waterConfig = waterConfig != null ? waterConfig : PathWaterConfig.DISABLED;
         this.blockBreakingConfig = blockBreakingConfig != null ? blockBreakingConfig : PathBlockBreakingConfig.DISABLED;
+        this.wallAdjacencyMalus = Math.max(0.0f, wallAdjacencyMalus);
     }
 
     public static Builder builder() {
@@ -112,6 +118,14 @@ public final class TerrainEvaluatorConfig {
 
     public int getMaxStepHeight() {
         return maxStepHeight;
+    }
+
+    /**
+     * Soft per-side cost added to standing ground nodes that sit directly beside a two-high solid wall, biasing
+     * paths toward the center of walkways and away from inner corner faces. Zero disables the bias entirely.
+     */
+    public float getWallAdjacencyMalus() {
+        return wallAdjacencyMalus;
     }
 
     public boolean canOpenDoors() {
@@ -164,6 +178,8 @@ public final class TerrainEvaluatorConfig {
 
         private PathBlockBreakingConfig blockBreakingConfig;
 
+        private float wallAdjacencyMalus = DEFAULT_WALL_ADJACENCY_MALUS;
+
         private Builder() {
             this.terrainCostSuppliers = new EnumMap<>(TerrainType.class);
             this.terrainClassifier = TerrainClassifiers.GROUND_ONLY;
@@ -192,9 +208,9 @@ public final class TerrainEvaluatorConfig {
         }
 
         public Builder addTerrainFromSpeedRatio(
-            TerrainType type,
-            Supplier<Float> groundSpeedSupplier,
-            Supplier<Float> terrainSpeedSupplier
+                TerrainType type,
+                Supplier<Float> groundSpeedSupplier,
+                Supplier<Float> terrainSpeedSupplier
         ) {
             terrainCostSuppliers.put(type, () -> groundSpeedSupplier.get() / terrainSpeedSupplier.get());
             return this;
@@ -266,24 +282,35 @@ public final class TerrainEvaluatorConfig {
             return this;
         }
 
+        /**
+         * Sets the soft per-side cost for standing ground nodes directly beside a two-high solid wall. Defaults to
+         * {@value #DEFAULT_WALL_ADJACENCY_MALUS}; pass 0 to disable the center-of-walkway bias entirely. Negative
+         * values are clamped to 0.
+         */
+        public Builder withWallAdjacencyMalus(float wallAdjacencyMalus) {
+            this.wallAdjacencyMalus = wallAdjacencyMalus;
+            return this;
+        }
+
         public TerrainEvaluatorConfig build() {
             if (terrainCostSuppliers.isEmpty()) {
                 terrainCostSuppliers.put(TerrainType.GROUND, () -> DEFAULT_COST);
             }
 
             return new TerrainEvaluatorConfig(
-                terrainCostSuppliers,
-                terrainClassifier,
-                entityWidth,
-                entityHeight,
-                maxFallDistance,
-                maxStepHeight,
-                canOpenDoors,
-                canWalkOverFences,
-                canFly,
-                crawlConfig,
-                waterConfig,
-                blockBreakingConfig
+                    terrainCostSuppliers,
+                    terrainClassifier,
+                    entityWidth,
+                    entityHeight,
+                    maxFallDistance,
+                    maxStepHeight,
+                    canOpenDoors,
+                    canWalkOverFences,
+                    canFly,
+                    crawlConfig,
+                    waterConfig,
+                    blockBreakingConfig,
+                    wallAdjacencyMalus
             );
         }
     }
