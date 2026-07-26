@@ -39,7 +39,8 @@ public record LimbDefinition(
     LimbCategory category,
     Function<LivingEntity, Vec3> spawnOffsetProvider,
     boolean fatal,
-    List<LimbPoseOption> poses
+    List<LimbPoseOption> poses,
+    List<LimbHitVolume> hitVolumes
 ) {
 
     public LimbDefinition(
@@ -48,7 +49,17 @@ public record LimbDefinition(
         Function<LivingEntity, Vec3> spawnOffsetProvider,
         boolean fatal
     ) {
-        this(id, category, spawnOffsetProvider, fatal, List.of());
+        this(id, category, spawnOffsetProvider, fatal, List.of(), List.of());
+    }
+
+    public LimbDefinition(
+        ResourceLocation id,
+        LimbCategory category,
+        Function<LivingEntity, Vec3> spawnOffsetProvider,
+        boolean fatal,
+        List<LimbPoseOption> poses
+    ) {
+        this(id, category, spawnOffsetProvider, fatal, poses, List.of());
     }
 
     public LimbDefinition {
@@ -56,6 +67,7 @@ public record LimbDefinition(
         Objects.requireNonNull(category, "LimbDefinition category must not be null");
         Objects.requireNonNull(spawnOffsetProvider, "LimbDefinition spawnOffsetProvider must not be null");
         Objects.requireNonNull(poses, "LimbDefinition poses must not be null");
+        Objects.requireNonNull(hitVolumes, "LimbDefinition hitVolumes must not be null");
 
         Set<String> poseIds = new HashSet<>();
         var copied = new ArrayList<LimbPoseOption>(poses.size());
@@ -70,6 +82,7 @@ public record LimbDefinition(
             copied.add(pose);
         }
         poses = List.copyOf(copied);
+        hitVolumes = List.copyOf(hitVolumes);
     }
 
     /**
@@ -82,8 +95,13 @@ public record LimbDefinition(
             ResourceLocation.CODEC.fieldOf("id").forGetter(LimbDefinition::id),
             LimbCategory.CODEC.fieldOf("category").forGetter(LimbDefinition::category),
             Codec.BOOL.optionalFieldOf("fatal", false).forGetter(LimbDefinition::fatal),
-            LimbPoseOption.CODEC.listOf().optionalFieldOf("poses", List.of()).forGetter(LimbDefinition::poses)
-        ).apply(instance, (id, category, fatal, poses) -> new LimbDefinition(id, category, SpawnFunctionRegistry.get(id), fatal, poses))
+            LimbPoseOption.CODEC.listOf().optionalFieldOf("poses", List.of()).forGetter(LimbDefinition::poses),
+            LimbHitVolume.CODEC.listOf().optionalFieldOf("hit_volumes", List.of()).forGetter(LimbDefinition::hitVolumes)
+        ).apply(
+            instance,
+            (id, category, fatal, poses, hitVolumes) ->
+                new LimbDefinition(id, category, SpawnFunctionRegistry.get(id), fatal, poses, hitVolumes)
+        )
     );
 
     public boolean hasPose(String poseId) {
@@ -206,6 +224,8 @@ public record LimbDefinition(
 
         private final List<LimbPose> poses = new ArrayList<>();
 
+        private final List<LimbHitVolume> hitVolumes = new ArrayList<>();
+
         private Function<LivingEntity, Vec3> spawnOffsetProvider = SpawnFunctionRegistry.DEFAULT_PROVIDER;
 
         private boolean fatal = false;
@@ -271,6 +291,17 @@ public record LimbDefinition(
             return this;
         }
 
+        public Builder hitVolume(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+            hitVolumes.add(new LimbHitVolume(minX, minY, minZ, maxX, maxY, maxZ));
+            return this;
+        }
+
+        public Builder hitVolumes(List<LimbHitVolume> hitVolumes) {
+            this.hitVolumes.clear();
+            this.hitVolumes.addAll(Objects.requireNonNull(hitVolumes));
+            return this;
+        }
+
         public Builder spawnOffset(double x, double y, double z) {
             var fixed = new Vec3(x, y, z);
             this.spawnOffsetProvider = $ -> fixed;
@@ -321,7 +352,7 @@ public record LimbDefinition(
          */
         public LimbDefinition build() {
             var poseOptions = poses.stream().map(LimbPoseOption::fromPose).toList();
-            var definition = new LimbDefinition(id, category, spawnOffsetProvider, fatal, poseOptions);
+            var definition = new LimbDefinition(id, category, spawnOffsetProvider, fatal, poseOptions, hitVolumes);
             var visuals = new LimbVisuals(
                 rootBoneName,
                 companionBoneNames,
