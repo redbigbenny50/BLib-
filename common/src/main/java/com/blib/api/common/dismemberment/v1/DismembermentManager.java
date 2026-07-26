@@ -10,9 +10,7 @@ import net.minecraft.world.entity.LivingEntity;
 
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import com.blib.api.common.data_sync.v1.DataAccessor;
@@ -34,19 +32,11 @@ public final class DismembermentManager implements NBTSerializable {
 
     private static final String NBT_KEY = "DetachedLimbs";
 
-    private static final String NBT_DAMAGE_KEY = "LimbDamage";
-
-    private static final String NBT_DAMAGE_ID_KEY = "Id";
-
-    private static final String NBT_DAMAGE_VALUE_KEY = "Damage";
-
     private final LivingEntity entity;
 
     private final DataAccessor<List<ResourceLocation>> detachedLimbsAccessor;
 
     private Set<ResourceLocation> detachedLimbs;
-
-    private final Map<ResourceLocation, Float> limbDamage = new HashMap<>();
 
     public DismembermentManager(LivingEntity entity) {
         if (!(entity instanceof DataUser)) {
@@ -94,7 +84,6 @@ public final class DismembermentManager implements NBTSerializable {
             return false;
         }
 
-        limbDamage.remove(limbId);
         publishToAccessor();
         return true;
     }
@@ -116,40 +105,12 @@ public final class DismembermentManager implements NBTSerializable {
     }
 
     public void clear() {
-        if (entity.level().isClientSide || (detachedLimbs.isEmpty() && limbDamage.isEmpty())) {
+        if (entity.level().isClientSide || detachedLimbs.isEmpty()) {
             return;
         }
 
         detachedLimbs.clear();
-        limbDamage.clear();
         publishToAccessor();
-    }
-
-    public float getLimbDamage(ResourceLocation limbId) {
-        return limbDamage.getOrDefault(limbId, 0.0F);
-    }
-
-    public float addLimbDamage(ResourceLocation limbId, float amount) {
-        if (entity.level().isClientSide || amount <= 0.0F || isDetached(limbId)) {
-            return getLimbDamage(limbId);
-        }
-        var updated = Math.max(0.0F, getLimbDamage(limbId) + amount);
-        limbDamage.put(limbId, updated);
-        return updated;
-    }
-
-    public void clearLimbDamage(ResourceLocation limbId) {
-        if (!entity.level().isClientSide) {
-            limbDamage.remove(limbId);
-        }
-    }
-
-    public void healLimbDamage(float amount) {
-        if (entity.level().isClientSide || amount <= 0.0F || limbDamage.isEmpty()) {
-            return;
-        }
-        limbDamage.replaceAll((id, damage) -> Math.max(0.0F, damage - amount));
-        limbDamage.values().removeIf(damage -> damage <= 0.0F);
     }
 
     private void publishToAccessor() {
@@ -162,33 +123,23 @@ public final class DismembermentManager implements NBTSerializable {
 
     @Override
     public void load(CompoundTag compoundTag) {
-        if (compoundTag.contains(NBT_KEY, Tag.TAG_LIST)) {
-            var listTag = compoundTag.getList(NBT_KEY, Tag.TAG_STRING);
-            var loaded = new HashSet<ResourceLocation>(listTag.size());
-
-            for (var i = 0; i < listTag.size(); i++) {
-                var raw = listTag.getString(i);
-                var parsed = ResourceLocation.tryParse(raw);
-
-                if (parsed != null) {
-                    loaded.add(parsed);
-                }
-            }
-            detachedLimbs = loaded;
+        if (!compoundTag.contains(NBT_KEY, Tag.TAG_LIST)) {
+            return;
         }
 
-        limbDamage.clear();
-        if (compoundTag.contains(NBT_DAMAGE_KEY, Tag.TAG_LIST)) {
-            var damageList = compoundTag.getList(NBT_DAMAGE_KEY, Tag.TAG_COMPOUND);
-            for (var i = 0; i < damageList.size(); i++) {
-                var entry = damageList.getCompound(i);
-                var id = ResourceLocation.tryParse(entry.getString(NBT_DAMAGE_ID_KEY));
-                var damage = entry.getFloat(NBT_DAMAGE_VALUE_KEY);
-                if (id != null && damage > 0.0F && !detachedLimbs.contains(id)) {
-                    limbDamage.put(id, damage);
-                }
+        var listTag = compoundTag.getList(NBT_KEY, Tag.TAG_STRING);
+        var loaded = new HashSet<ResourceLocation>(listTag.size());
+
+        for (var i = 0; i < listTag.size(); i++) {
+            var raw = listTag.getString(i);
+            var parsed = ResourceLocation.tryParse(raw);
+
+            if (parsed != null) {
+                loaded.add(parsed);
             }
         }
+
+        detachedLimbs = loaded;
 
         if (!entity.level().isClientSide) {
             publishToAccessor();
@@ -197,28 +148,17 @@ public final class DismembermentManager implements NBTSerializable {
 
     @Override
     public void save(CompoundTag compoundTag) {
-        if (detachedLimbs.isEmpty() && limbDamage.isEmpty()) {
+        if (detachedLimbs.isEmpty()) {
             return;
         }
 
-        if (!detachedLimbs.isEmpty()) {
-            var listTag = new ListTag();
-            for (var id : detachedLimbs) {
-                listTag.add(StringTag.valueOf(id.toString()));
-            }
-            compoundTag.put(NBT_KEY, listTag);
+        var listTag = new ListTag();
+
+        for (var id : detachedLimbs) {
+            listTag.add(StringTag.valueOf(id.toString()));
         }
 
-        if (!limbDamage.isEmpty()) {
-            var damageList = new ListTag();
-            for (var entry : limbDamage.entrySet()) {
-                var damageTag = new CompoundTag();
-                damageTag.putString(NBT_DAMAGE_ID_KEY, entry.getKey().toString());
-                damageTag.putFloat(NBT_DAMAGE_VALUE_KEY, entry.getValue());
-                damageList.add(damageTag);
-            }
-            compoundTag.put(NBT_DAMAGE_KEY, damageList);
-        }
+        compoundTag.put(NBT_KEY, listTag);
     }
 
     public static boolean isDetached(Entity entity, ResourceLocation limbId) {

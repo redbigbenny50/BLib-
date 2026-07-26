@@ -23,7 +23,6 @@ import java.util.function.Consumer;
 import com.blib.api.common.dismemberment.v1.LimbCategory;
 import com.blib.api.common.dismemberment.v1.LimbDefinition;
 import com.blib.api.common.dismemberment.v1.LimbPoseOption;
-import com.blib.api.common.dismemberment.v1.LimbHitVolume;
 import com.blib.api.common.dismemberment.v1.SpawnFunctionRegistry;
 import com.blib.api.common.registry.v1.BLibHolder;
 
@@ -160,8 +159,6 @@ public abstract class LimbDefinitionDataProvider implements DataProvider {
 
         private final List<LimbPoseOption> poses = new ArrayList<>();
 
-        private final List<LimbHitVolume> hitVolumes = new ArrayList<>();
-
         private LimbBuilder(ResourceLocation id, LimbCategory category) {
             this.id = id;
             this.category = category;
@@ -188,19 +185,13 @@ public abstract class LimbDefinitionDataProvider implements DataProvider {
             return this;
         }
 
-        public LimbBuilder hitVolume(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
-            hitVolumes.add(new LimbHitVolume(minX, minY, minZ, maxX, maxY, maxZ));
-            return this;
-        }
-
         private LimbDefinition build() {
             return new LimbDefinition(
                 id,
                 category,
                 SpawnFunctionRegistry.DEFAULT_PROVIDER,
                 fatal,
-                Collections.unmodifiableList(new ArrayList<>(poses)),
-                Collections.unmodifiableList(new ArrayList<>(hitVolumes))
+                Collections.unmodifiableList(new ArrayList<>(poses))
             );
         }
     }
