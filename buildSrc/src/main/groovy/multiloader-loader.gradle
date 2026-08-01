@@ -32,3 +32,34 @@ processResources {
     dependsOn(configurations.commonResources)
     from(configurations.commonResources)
 }
+
+// Loader projects produce the jars consumed by dependent multi-loader projects. Publish the remapped loader jar to
+// Maven Local alongside the shared common artifact so local development can resolve one consistent BLib version.
+afterEvaluate {
+    def loaderJar = tasks.findByName('remapJar') ?: tasks.named('jar')
+    publishing {
+        publications {
+            loader(MavenPublication) {
+                artifactId = base.archivesName.get()
+                artifact(loaderJar)
+                // Loader projects expose common API types to downstream loader modules. Keep their Maven metadata in
+                // sync with the common publication so a locally published BLib is usable by AVP modules at compile
+                // time, not only at runtime after jar-in-jar processing.
+                pom.withXml {
+                    def dependencies = asNode().appendNode('dependencies')
+                    [
+                        ['just-codec', project.just_codec_version],
+                        ['just-core', project.just_core_version],
+                        ['just-goap', project.just_goap_version]
+                    ].each { dependency ->
+                        def node = dependencies.appendNode('dependency')
+                        node.appendNode('groupId', 'com.just')
+                        node.appendNode('artifactId', dependency[0])
+                        node.appendNode('version', dependency[1])
+                        node.appendNode('scope', 'compile')
+                    }
+                }
+            }
+        }
+    }
+}
