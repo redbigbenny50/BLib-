@@ -8,6 +8,7 @@ import java.util.function.Function;
 
 import com.blib.api.common.codec.v1.BLibCodecs;
 import com.blib.api.common.data_sync.v1.model.DataSyncKey;
+import com.blib.api.common.dismemberment.v1.LimbDamageState;
 import com.blib.api.common.registry.v1.BLibBuiltInRegistries;
 import com.blib.api.common.registry.v1.BLibHolder;
 import com.blib.api.common.registry.v1.BLibRegistry;
@@ -32,6 +33,13 @@ public class BLibDataSyncKeys {
     public static final BLibHolder<DataSyncKey<List<ResourceLocation>>> ENTITY_DETACHED_LIMBS = register(
         "entity_detached_limbs",
         builder -> builder.networkSynchronized(BLibCodecs.Stream.RESOURCE_LOCATION.asList())
+            .build(List.of())
+    );
+
+    /** Current damage pools, mirrored so client-only F3+B diagnostics can show real limb durability. */
+    public static final BLibHolder<DataSyncKey<List<LimbDamageState>>> ENTITY_LIMB_DAMAGE = register(
+        "entity_limb_damage",
+        builder -> builder.networkSynchronized(LimbDamageState.CODEC.asList())
             .build(List.of())
     );
 
