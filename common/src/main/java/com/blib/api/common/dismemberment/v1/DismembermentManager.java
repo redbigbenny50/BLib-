@@ -9,8 +9,10 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.blib.api.common.data_sync.v1.DataAccessor;
@@ -32,11 +34,21 @@ public final class DismembermentManager implements NBTSerializable {
 
     private static final String NBT_KEY = "DetachedLimbs";
 
+    private static final String LIMB_DAMAGE_NBT_KEY = "LimbDamage";
+
+    private static final String LIMB_DAMAGE_ID_NBT_KEY = "Id";
+
+    private static final String LIMB_DAMAGE_VALUE_NBT_KEY = "Damage";
+
     private final LivingEntity entity;
 
     private final DataAccessor<List<ResourceLocation>> detachedLimbsAccessor;
 
+    private final DataAccessor<List<LimbDamageState>> limbDamageAccessor;
+
     private Set<ResourceLocation> detachedLimbs;
+
+    private final Map<ResourceLocation, Float> limbDamage = new HashMap<>();
 
     public DismembermentManager(LivingEntity entity) {
         if (!(entity instanceof DataUser)) {
@@ -47,9 +59,12 @@ public final class DismembermentManager implements NBTSerializable {
 
         this.entity = entity;
         this.detachedLimbsAccessor = new DataAccessor<>((DataUser) entity, BLibDataSyncKeys.ENTITY_DETACHED_LIMBS.get());
+        this.limbDamageAccessor = new DataAccessor<>((DataUser) entity, BLibDataSyncKeys.ENTITY_LIMB_DAMAGE.get());
         this.detachedLimbs = new HashSet<>();
         this.detachedLimbsAccessor.onChange(this::onDetachedLimbsChanged);
         this.detachedLimbsAccessor.onLoad(this::onDetachedLimbsChanged);
+        this.limbDamageAccessor.onChange(this::onLimbDamageChanged);
+        this.limbDamageAccessor.onLoad(this::onLimbDamageChanged);
     }
 
     public LivingEntity getEntity() {
@@ -72,6 +87,39 @@ public final class DismembermentManager implements NBTSerializable {
         return !detachedLimbs.isEmpty();
     }
 
+    /** Returns the accumulated firearm damage for one limb pool. */
+    public float getLimbDamage(ResourceLocation limbId) {
+        return limbDamage.getOrDefault(limbId, 0.0F);
+    }
+
+    /**
+     * Server-side: add damage to one limb pool and return the new accumulated amount. Detached limbs cannot be damaged
+     * further.
+     */
+    public float addLimbDamage(ResourceLocation limbId, float damage) {
+        if (entity.level().isClientSide || damage <= 0.0F || isDetached(limbId)) {
+            return getLimbDamage(limbId);
+        }
+
+        var updated = getLimbDamage(limbId) + damage;
+        limbDamage.put(limbId, updated);
+        publishLimbDamage();
+        return updated;
+    }
+
+    /**
+     * Server-side: lower still-attached limb pools by restored health. Detached limbs remain detached.
+     */
+    public void healLimbDamage(float healedHealth) {
+        if (entity.level().isClientSide || healedHealth <= 0.0F || limbDamage.isEmpty()) {
+            return;
+        }
+
+        limbDamage.replaceAll((limbId, damage) -> Math.max(0.0F, damage - healedHealth));
+        limbDamage.entrySet().removeIf(entry -> entry.getValue() <= 0.0F);
+        publishLimbDamage();
+    }
+
     /**
      * Server-side: marks a limb as detached. Returns true if state changed.
      */
@@ -84,6 +132,7 @@ public final class DismembermentManager implements NBTSerializable {
             return false;
         }
 
+        limbDamage.remove(limbId);
         publishToAccessor();
         return true;
     }
@@ -105,41 +154,72 @@ public final class DismembermentManager implements NBTSerializable {
     }
 
     public void clear() {
-        if (entity.level().isClientSide || detachedLimbs.isEmpty()) {
+        if (entity.level().isClientSide || (detachedLimbs.isEmpty() && limbDamage.isEmpty())) {
             return;
         }
 
         detachedLimbs.clear();
+        limbDamage.clear();
         publishToAccessor();
     }
 
     private void publishToAccessor() {
         detachedLimbsAccessor.set(List.copyOf(detachedLimbs));
+        publishLimbDamage();
+    }
+
+    private void publishLimbDamage() {
+        var states = limbDamage.entrySet()
+            .stream()
+            .sorted(Map.Entry.comparingByKey())
+            .map(entry -> new LimbDamageState(entry.getKey(), entry.getValue()))
+            .toList();
+        limbDamageAccessor.set(states);
     }
 
     private void onDetachedLimbsChanged(List<ResourceLocation> incoming) {
         detachedLimbs = new HashSet<>(incoming);
     }
 
+    private void onLimbDamageChanged(List<LimbDamageState> incoming) {
+        limbDamage.clear();
+        for (var state : incoming) {
+            if (state.damage() > 0.0F && !detachedLimbs.contains(state.limbId())) {
+                limbDamage.put(state.limbId(), state.damage());
+            }
+        }
+    }
+
     @Override
     public void load(CompoundTag compoundTag) {
-        if (!compoundTag.contains(NBT_KEY, Tag.TAG_LIST)) {
-            return;
-        }
+        var loaded = new HashSet<ResourceLocation>();
+        if (compoundTag.contains(NBT_KEY, Tag.TAG_LIST)) {
+            var listTag = compoundTag.getList(NBT_KEY, Tag.TAG_STRING);
 
-        var listTag = compoundTag.getList(NBT_KEY, Tag.TAG_STRING);
-        var loaded = new HashSet<ResourceLocation>(listTag.size());
+            for (var i = 0; i < listTag.size(); i++) {
+                var raw = listTag.getString(i);
+                var parsed = ResourceLocation.tryParse(raw);
 
-        for (var i = 0; i < listTag.size(); i++) {
-            var raw = listTag.getString(i);
-            var parsed = ResourceLocation.tryParse(raw);
-
-            if (parsed != null) {
-                loaded.add(parsed);
+                if (parsed != null) {
+                    loaded.add(parsed);
+                }
             }
         }
 
         detachedLimbs = loaded;
+        limbDamage.clear();
+
+        if (compoundTag.contains(LIMB_DAMAGE_NBT_KEY, Tag.TAG_LIST)) {
+            var damageList = compoundTag.getList(LIMB_DAMAGE_NBT_KEY, Tag.TAG_COMPOUND);
+            for (var i = 0; i < damageList.size(); i++) {
+                var entry = damageList.getCompound(i);
+                var id = ResourceLocation.tryParse(entry.getString(LIMB_DAMAGE_ID_NBT_KEY));
+                var damage = entry.getFloat(LIMB_DAMAGE_VALUE_NBT_KEY);
+                if (id != null && damage > 0.0F && !detachedLimbs.contains(id)) {
+                    limbDamage.put(id, damage);
+                }
+            }
+        }
 
         if (!entity.level().isClientSide) {
             publishToAccessor();
@@ -148,7 +228,7 @@ public final class DismembermentManager implements NBTSerializable {
 
     @Override
     public void save(CompoundTag compoundTag) {
-        if (detachedLimbs.isEmpty()) {
+        if (detachedLimbs.isEmpty() && limbDamage.isEmpty()) {
             return;
         }
 
@@ -159,6 +239,17 @@ public final class DismembermentManager implements NBTSerializable {
         }
 
         compoundTag.put(NBT_KEY, listTag);
+
+        if (!limbDamage.isEmpty()) {
+            var damageList = new ListTag();
+            for (var entry : limbDamage.entrySet()) {
+                var damageTag = new CompoundTag();
+                damageTag.putString(LIMB_DAMAGE_ID_NBT_KEY, entry.getKey().toString());
+                damageTag.putFloat(LIMB_DAMAGE_VALUE_NBT_KEY, entry.getValue());
+                damageList.add(damageTag);
+            }
+            compoundTag.put(LIMB_DAMAGE_NBT_KEY, damageList);
+        }
     }
 
     public static boolean isDetached(Entity entity, ResourceLocation limbId) {
