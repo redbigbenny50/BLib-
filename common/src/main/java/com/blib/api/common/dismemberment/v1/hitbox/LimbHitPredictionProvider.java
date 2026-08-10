@@ -11,5 +11,3 @@ public interface LimbHitPredictionProvider {
 
     Optional<LimbHitPrediction> findNearest(Level level, Vec3 rayStart, Vec3 rayEnd);
 }
-
-

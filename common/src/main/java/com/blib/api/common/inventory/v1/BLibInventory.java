@@ -353,6 +353,49 @@ public class BLibInventory {
         return result;
     }
 
+    /**
+     * The live stack in a slot, not a copy.
+     * <p>
+     * Container menus mutate the stack they are handed, growing and shrinking it in place before handing it back, so a
+     * defensive copy of the kind {@link Entry#copyItemStack()} and {@link #getSerializedItemStacks()} return would
+     * silently swallow those edits. Anything driving this inventory through a {@code Container} needs the real one.
+     * <p>
+     * A caller that mutates the returned stack MUST follow up with {@link #setItemStack(int, ItemStack)} for the same
+     * slot so the item index can be rebuilt. See that method for why.
+     */
+    public ItemStack getItemStack(int slotIndex) {
+        return getEntryInSlot(slotIndex).itemStack;
+    }
+
+    /**
+     * Writes a stack directly into a slot, keeping the item index consistent.
+     * <p>
+     * That index is what {@link #hasItem}, {@link #selectEntries} and {@link #filterEntriesByItem} search, and it is
+     * therefore how every consumer of this class finds anything. A slot written without maintaining it becomes
+     * invisible: the stack is in the inventory and nothing can locate it.
+     * <p>
+     * The entry is purged from every item bucket before being re-filed, rather than evicted from the one named by its
+     * current stack. That is deliberate. A caller holding the live stack may have emptied it in place, and an emptied
+     * {@link ItemStack} reports its item as air, so it can no longer name the bucket it is actually filed under.
+     */
+    public void setItemStack(int slotIndex, ItemStack newStack) {
+        var entry = getEntryInSlot(slotIndex);
+
+        purgeEntryFromItemIndex(entry);
+        setItemStack(entry, newStack == null ? ItemStack.EMPTY : newStack);
+    }
+
+    /**
+     * Removes an entry from every item bucket it appears under, dropping buckets left empty.
+     */
+    private void purgeEntryFromItemIndex(Entry entry) {
+        itemToEntriesMap.values().removeIf(bucket -> {
+            bucket.remove(entry);
+
+            return bucket.isEmpty();
+        });
+    }
+
     private void shrinkEntryStack(Entry entry, int amount) {
         var stack = entry.itemStack;
 

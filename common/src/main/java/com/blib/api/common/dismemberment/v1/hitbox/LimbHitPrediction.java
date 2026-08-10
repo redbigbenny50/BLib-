@@ -6,11 +6,15 @@ import java.util.Objects;
 
 /**
  * Client-side identification of the rendered limb a local shot crossed.
- *
- * <p>This is deliberately not hitbox data: no model coordinates, transforms, or volume dimensions leave the client.
- * The server must independently validate the target and limb before applying gameplay damage.</p>
+ * <p>
+ * This is deliberately not hitbox data: no model coordinates, transforms, or volume dimensions leave the client. The
+ * server must independently validate the target and limb before applying gameplay damage.
+ * </p>
  */
-public record LimbHitPrediction(int entityId, ResourceLocation limbId) {
+public record LimbHitPrediction(
+    int entityId,
+    ResourceLocation limbId
+) {
 
     public LimbHitPrediction {
         if (entityId < 0) {

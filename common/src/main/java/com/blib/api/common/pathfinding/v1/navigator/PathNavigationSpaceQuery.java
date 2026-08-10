@@ -32,9 +32,9 @@ final class PathNavigationSpaceQuery {
     private final Supplier<@Nullable Set<TerrainType>> excludedTerrainsSupplier;
 
     PathNavigationSpaceQuery(
-            LevelReader level,
-            PathNavigatorConfig config,
-            Supplier<@Nullable Set<TerrainType>> excludedTerrainsSupplier
+        LevelReader level,
+        PathNavigatorConfig config,
+        Supplier<@Nullable Set<TerrainType>> excludedTerrainsSupplier
     ) {
         this.level = level;
         this.config = config;
@@ -45,7 +45,7 @@ final class PathNavigationSpaceQuery {
         var excludedTerrains = excludedTerrainsSupplier.get();
 
         return config.getEvaluatorConfig().getSupportedTerrains().contains(terrainType)
-                && (excludedTerrains == null || !excludedTerrains.contains(terrainType));
+            && (excludedTerrains == null || !excludedTerrains.contains(terrainType));
     }
 
     boolean isEntityBoxClear(Vec3 feetCenter, float entityWidth, float entityHeight) {
@@ -55,12 +55,12 @@ final class PathNavigationSpaceQuery {
     boolean isEntityBoxClear(Vec3 feetCenter, float entityWidth, float entityHeight, boolean allowLiquids) {
         var halfWidth = entityWidth / 2.0d;
         var entityBox = new AABB(
-                feetCenter.x - halfWidth,
-                feetCenter.y,
-                feetCenter.z - halfWidth,
-                feetCenter.x + halfWidth,
-                feetCenter.y + entityHeight,
-                feetCenter.z + halfWidth
+            feetCenter.x - halfWidth,
+            feetCenter.y,
+            feetCenter.z - halfWidth,
+            feetCenter.x + halfWidth,
+            feetCenter.y + entityHeight,
+            feetCenter.z + halfWidth
         ).deflate(COLLISION_EPSILON, 0.0, COLLISION_EPSILON);
 
         var minX = (int) Math.floor(entityBox.minX);
@@ -144,16 +144,16 @@ final class PathNavigationSpaceQuery {
     }
 
     /**
-     * Returns the world Y of the walkable surface an entity actually rests on for a ground node whose feet-space
-     * block sits at {@code nodeY}. Support blocks shorter than a full cube (bottom slabs, closed trapdoors, and any
-     * other partial-height solid) let the entity settle below the integer node floor, so the raw node Y overstates
-     * where the entity stands: a slab is 0.5 below, a closed trapdoor ~0.8125 below. Anchoring the waypoint to this
-     * real surface keeps the follower's vertical-reach test and the mob's move-control target aligned with the
-     * entity's true footing, which is what stops the in-place spin on partial blocks.
-     *
-     * <p>The tallest support beneath the footprint wins, because that is what physically holds the entity up. Falls
-     * back to {@code nodeY} (offset 0, i.e. full-block behavior) when no solid support is found, so full blocks and
-     * any node without a partial support behave exactly as before.
+     * Returns the world Y of the walkable surface an entity actually rests on for a ground node whose feet-space block
+     * sits at {@code nodeY}. Support blocks shorter than a full cube (bottom slabs, closed trapdoors, and any other
+     * partial-height solid) let the entity settle below the integer node floor, so the raw node Y overstates where the
+     * entity stands: a slab is 0.5 below, a closed trapdoor ~0.8125 below. Anchoring the waypoint to this real surface
+     * keeps the follower's vertical-reach test and the mob's move-control target aligned with the entity's true
+     * footing, which is what stops the in-place spin on partial blocks.
+     * <p>
+     * The tallest support beneath the footprint wins, because that is what physically holds the entity up. Falls back
+     * to {@code nodeY} (offset 0, i.e. full-block behavior) when no solid support is found, so full blocks and any node
+     * without a partial support behave exactly as before.
      */
     double groundSurfaceY(double centerX, int nodeY, double centerZ, float entityWidth) {
         var halfWidth = entityWidth / 2.0d;
@@ -236,8 +236,10 @@ final class PathNavigationSpaceQuery {
                             continue;
                         }
 
-                        if (box.maxX + bx > footMinX && box.minX + bx < footMaxX
-                                && box.maxZ + bz > footMinZ && box.minZ + bz < footMaxZ) {
+                        if (
+                            box.maxX + bx > footMinX && box.minX + bx < footMaxX
+                                && box.maxZ + bz > footMinZ && box.minZ + bz < footMaxZ
+                        ) {
                             return true;
                         }
                     }
@@ -264,12 +266,12 @@ final class PathNavigationSpaceQuery {
         }
 
         var supportProbe = new AABB(
-                x + COLLISION_EPSILON,
-                feetY - COLLISION_EPSILON,
-                z + COLLISION_EPSILON,
-                x + 1.0d - COLLISION_EPSILON,
-                feetY + COLLISION_EPSILON,
-                z + 1.0d - COLLISION_EPSILON
+            x + COLLISION_EPSILON,
+            feetY - COLLISION_EPSILON,
+            z + COLLISION_EPSILON,
+            x + 1.0d - COLLISION_EPSILON,
+            feetY + COLLISION_EPSILON,
+            z + 1.0d - COLLISION_EPSILON
         );
 
         for (var blockBox : shape.toAabbs()) {

@@ -26,6 +26,8 @@ public class ExplosionBuilder {
 
     int cycleDelayInTicks;
 
+    int maxMillisecondsPerCycle;
+
     private ExplosionBlockSamplerPredicate samplerPredicate;
 
     ExplosionBuilder(ServerLevel level, Vec3 center) {
@@ -35,6 +37,7 @@ public class ExplosionBuilder {
         this.directionToRadiusMap = new EnumMap<>(Direction.class);
         this.blockSampleCountPerCycle = 65535 / 2;
         this.cycleDelayInTicks = 1;
+        this.maxMillisecondsPerCycle = 10;
         this.samplerPredicate = ExplosionBlockSamplerPredicate.DEFAULT;
     }
 
@@ -70,6 +73,16 @@ public class ExplosionBuilder {
 
     public ExplosionBuilder withCycleDelayInTicks(int cycleDelayInTicks) {
         this.cycleDelayInTicks = cycleDelayInTicks;
+        return this;
+    }
+
+    /**
+     * Caps how long one cycle may occupy the server thread. The processor shrinks its batch when a cycle overruns this
+     * and grows it again when there is room, so the same explosion completes at whatever pace the hardware can actually
+     * sustain instead of a fixed block count that is generous on one machine and a stall on another.
+     */
+    public ExplosionBuilder withMaxMillisecondsPerCycle(int maxMillisecondsPerCycle) {
+        this.maxMillisecondsPerCycle = maxMillisecondsPerCycle;
         return this;
     }
 
@@ -113,6 +126,7 @@ public class ExplosionBuilder {
             center,
             centerBlockPosition,
             cycleDelayInTicks,
+            maxMillisecondsPerCycle,
             directionToRadiusMap
         );
 

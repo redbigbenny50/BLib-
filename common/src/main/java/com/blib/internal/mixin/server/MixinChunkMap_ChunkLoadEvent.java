@@ -31,19 +31,18 @@ public abstract class MixinChunkMap_ChunkLoadEvent {
     /**
      * SAFETY CONTRACT — this callback runs INSIDE the chunk system's own bookkeeping. Vanilla calls
      * {@code onFullChunkStatusChange} from {@code DistanceManager.runAllUpdates}'s iteration over
-     * {@code chunksToUpdateFutures}. The old body called the BLOCKING {@code level.getChunk(x, z)} right here;
-     * when the chunk wasn't immediately ready (a nether-portal wall of promotions/demotions on an overloaded
-     * server), that call drained main-thread tasks via {@code managedBlock -> pollTask ->
+     * {@code chunksToUpdateFutures}. The old body called the BLOCKING {@code level.getChunk(x, z)} right here; when the
+     * chunk wasn't immediately ready (a nether-portal wall of promotions/demotions on an overloaded server), that call
+     * drained main-thread tasks via {@code managedBlock -> pollTask ->
      * runDistanceManagerUpdates} REENTRANTLY — seven nested frames in the crash that found this — and the outer
-     * iteration died with a {@link java.util.ConcurrentModificationException}: "Exception ticking world" on
-     * dimension change. Dispatching listeners synchronously here is just as unsafe: listener code that touches
-     * chunks or tickets mutates the same set mid-iteration.
-     *
-     * <p>So the handler now does only cheap, chunk-system-free work synchronously (status guard, dedupe,
-     * listener-presence check) and DEFERS resolution + dispatch onto the server task queue, which drains after
-     * the current chunk-future pass completes. The deferred task resolves the chunk with the NON-BLOCKING
-     * {@code getChunkNow} — a chunk gone again by then simply skips, and listeners (which fire once per load)
-     * will see it on its next load instead.
+     * iteration died with a {@link java.util.ConcurrentModificationException}: "Exception ticking world" on dimension
+     * change. Dispatching listeners synchronously here is just as unsafe: listener code that touches chunks or tickets
+     * mutates the same set mid-iteration.
+     * <p>
+     * So the handler now does only cheap, chunk-system-free work synchronously (status guard, dedupe, listener-presence
+     * check) and DEFERS resolution + dispatch onto the server task queue, which drains after the current chunk-future
+     * pass completes. The deferred task resolves the chunk with the NON-BLOCKING {@code getChunkNow} — a chunk gone
+     * again by then simply skips, and listeners (which fire once per load) will see it on its next load instead.
      */
     @Inject(at = @At("TAIL"), method = "onFullChunkStatusChange")
     private void blib$onChunkLoad(ChunkPos pos, FullChunkStatus fullChunkStatus, CallbackInfo ci) {

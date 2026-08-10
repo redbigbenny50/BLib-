@@ -21,6 +21,8 @@ public class BLibInternalClientServices {
 
     public static final BLibClientRegistryService CLIENT_REGISTRY = load(BLibClientRegistryService.class);
 
+    public static final BLibClientSodiumCompatService SODIUM_COMPAT = load(BLibClientSodiumCompatService.class);
+
     private static <T> T load(Class<T> clazz) {
         var loadedService = ServiceLoader.load(clazz)
             .findFirst()

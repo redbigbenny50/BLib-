@@ -1,6 +1,5 @@
 package com.blib.api.common.dismemberment.v1.hitbox;
 
-import com.blib.api.common.dismemberment.v1.DismembermentManager;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
@@ -12,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+
+import com.blib.api.common.dismemberment.v1.DismembermentManager;
 
 /** Registry and server raycast entry point for additive limb hurtboxes. */
 public final class LimbHitboxRegistry {
@@ -45,7 +46,10 @@ public final class LimbHitboxRegistry {
             .toList();
     }
 
-    public record Hit(LimbHitboxVolume volume, Vec3 location) {}
+    public record Hit(
+        LimbHitboxVolume volume,
+        Vec3 location
+    ) {}
 
     private LimbHitboxRegistry() {}
 }

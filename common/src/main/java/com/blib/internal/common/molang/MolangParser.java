@@ -89,8 +89,8 @@ public class MolangParser extends MathBuilder {
     }
 
     protected static MolangValue parseOneLine(
-            String expression,
-            MolangCompoundValue currentStatement
+        String expression,
+        MolangCompoundValue currentStatement
     ) {
         if (expression.startsWith(RETURN)) {
             try {
@@ -105,8 +105,8 @@ public class MolangParser extends MathBuilder {
             List<Object> symbols = INSTANCE.breakdownChars(INSTANCE.breakdown(expression));
 
             if (
-                    symbols.size() >= 3 && symbols.get(0) instanceof String name && INSTANCE.isVariable(symbols.get(0))
-                            && symbols.get(1).equals("=")
+                symbols.size() >= 3 && symbols.get(0) instanceof String name && INSTANCE.isVariable(symbols.get(0))
+                    && symbols.get(1).equals("=")
             ) {
                 symbols = symbols.subList(2, symbols.size());
                 LazyVariable variable;

@@ -1,9 +1,10 @@
 package com.blib.api.common.dismemberment.v1.hitbox;
 
+import net.minecraft.world.entity.LivingEntity;
+
 import com.blib.api.common.dismemberment.v1.Dismemberable;
 import com.blib.api.common.dismemberment.v1.LimbDefinitionRegistry;
 import com.blib.api.common.dismemberment.v1.LimbDismemberer;
-import net.minecraft.world.entity.LivingEntity;
 
 /** Applies one confirmed firearm hit to normal health and, where applicable, to a limb pool. */
 public final class LimbHitboxDamage {
@@ -25,7 +26,11 @@ public final class LimbHitboxDamage {
         return new Result(accumulated, volume.limbDamageThreshold(), detached);
     }
 
-    public record Result(float limbDamage, float threshold, boolean detached) {}
+    public record Result(
+        float limbDamage,
+        float threshold,
+        boolean detached
+    ) {}
 
     private LimbHitboxDamage() {}
 }

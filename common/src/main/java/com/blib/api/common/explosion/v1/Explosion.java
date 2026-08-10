@@ -37,6 +37,29 @@ public class Explosion {
         explosionProcessor.process();
     }
 
+    /**
+     * An opaque snapshot of how far this explosion has carved, to be handed back to {@link #resume(int[])}.
+     * <p>
+     * Only progress is captured. The explosion itself, including its callbacks, has to be rebuilt by the caller before
+     * resuming, because a callback is a lambda and cannot be stored.
+     */
+    public int[] saveState() {
+        return explosionProcessor.saveState();
+    }
+
+    /**
+     * Restarts an explosion that was interrupted mid-carve, from a snapshot taken by {@link #saveState()}.
+     * <p>
+     * Unlike {@link #explode()} this deliberately does NOT fire {@code onExplosionStart}. That callback is where the
+     * one-off work of an explosion lives, such as damaging entities, applying knockback and spawning effects, and for a
+     * resumed explosion all of it has already happened. Firing it again would re-run the whole event every time the
+     * world reloaded. Keeping that decision here rather than in the caller means a caller cannot get it wrong.
+     */
+    public void resume(int[] cursorState) {
+        explosionProcessor.restoreState(cursorState);
+        explosionProcessor.process();
+    }
+
     public ExplosionCallbacks callbacks() {
         return callbacks;
     }

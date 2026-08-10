@@ -56,6 +56,7 @@
     "posteffect.MixinGameRenderer_PostEffectPipeline",
     "posteffect.MixinItemInHandLayer_HeldItemFlag",
     "posteffect.MixinLevelRenderer_BLibState",
+    "posteffect.MixinLevelRenderer_TerrainMaskFixup",
     "posteffect.MixinMainTarget_MRT",
     "posteffect.MixinModelPart_PerBoneLight",
     "posteffect.MixinRenderTarget_MRT",
