@@ -41,6 +41,18 @@ public sealed interface BLibPostEffectUniform {
         Supplier<Vector4f> value
     ) implements BLibPostEffectUniform {}
 
+    /**
+     * Array of vec4s, pushed with a raw {@code glUniform4fv} after the shader is bound — vanilla's {@code Uniform}
+     * cannot express an array, and the shader JSON has no syntax for one. The supplier returns tightly packed floats
+     * (x, y, z, w per element); anything beyond {@code maxCount} elements is ignored, so the shader's declared array
+     * size is the contract.
+     */
+    record Float4Array(
+        String name,
+        Supplier<float[]> value,
+        int maxCount
+    ) implements BLibPostEffectUniform {}
+
     record Int1(
         String name,
         IntSupplier value

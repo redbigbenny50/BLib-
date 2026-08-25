@@ -11,14 +11,19 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import org.jetbrains.annotations.ApiStatus;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
+import org.lwjgl.BufferUtils;
 
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.blib.api.client.shader.v1.BLibPostEffectInput;
 import com.blib.api.client.shader.v1.BLibPostEffectUniform;
 import com.blib.internal.mixin.posteffect.LightTextureAccessor;
+import com.blib.mod.BLib;
 
 /**
  * Per-frame runner. Walks {@link BLibPostEffectRegistry#ALL}, filters by active state, ping-pongs source/dest across
@@ -30,12 +35,113 @@ import com.blib.internal.mixin.posteffect.LightTextureAccessor;
 @ApiStatus.Internal
 public final class BLibPostEffectPipeline {
 
+    /**
+     * FIELD DIAGNOSTIC, OFF UNLESS {@code -Dblib.postEffect.maskProbe=true} IS SET. Logs the classification byte at
+     * screen centre roughly once a second, alongside the fog distances in force.
+     * <p>
+     * ⚠⚠ AN EARLIER VERSION OF THIS SHIPPED UNGATED IN 0.3.5-fork and cost every player a framebuffer create/destroy
+     * and a render-thread {@code glReadPixels} every second, plus a log line forever. It stays behind a flag now — but
+     * it stays, because it is the ONLY instrument that reaches a user's machine, and it is what identified a mask full
+     * of values that are not categories at all.
+     * <p>
+     * READING IT: valid categories are 255 entity, 223 held item, 128 terrain, 64 particle, 16 celestial, 0 sky.
+     * ⭐ ANYTHING ELSE MEANS THE MASK ITSELF IS WRONG, and no amount of shader tuning will help — look for whatever
+     * is writing to or resizing the attachments. Fog start/end are logged beside it because a "no fog" resource pack
+     * (Polytone, {@code fog_radius: 10000000}) was confirmed to break the vision, and this is the cheapest way to see
+     * whether absurd fog distances are reaching the shaders.
+     */
+    private static void blib$probeMaskAtCentre() {
+        if (!Boolean.getBoolean("blib.postEffect.maskProbe")) {
+            return;
+        }
+
+        var now = System.currentTimeMillis();
+
+        if (now - blib$lastProbeAt < 1000L) {
+            return;
+        }
+
+        blib$lastProbeAt = now;
+
+        var maskTexture = BLibMainTargetMRT.entityMaskTextureId();
+
+        if (maskTexture == 0) {
+            return;
+        }
+
+        var target = Minecraft.getInstance().getMainRenderTarget();
+        var previousFramebuffer = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
+        var scratch = GL30.glGenFramebuffers();
+
+        try {
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, scratch);
+            GL30.glFramebufferTexture2D(
+                GL30.GL_FRAMEBUFFER,
+                GL30.GL_COLOR_ATTACHMENT0,
+                GL11.GL_TEXTURE_2D,
+                maskTexture,
+                0
+            );
+
+            if (GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER) != GL30.GL_FRAMEBUFFER_COMPLETE) {
+                return;
+            }
+
+            var pixel = BufferUtils.createByteBuffer(4);
+
+            GL11.glReadPixels(
+                target.width / 2,
+                target.height / 2,
+                1,
+                1,
+                GL11.GL_RGBA,
+                GL11.GL_UNSIGNED_BYTE,
+                pixel
+            );
+
+            var category = pixel.get(0) & 0xFF;
+
+            BLib.LOGGER.info(
+                "[BLib][maskProbe] category={} ({}) depthCapturesSinceLastTick={} fogStart={} fogEnd={}",
+                category,
+                blib$describeCategory(category),
+                BLibDepthSnapshot.consumeCaptureCount(),
+                RenderSystem.getShaderFogStart(),
+                RenderSystem.getShaderFogEnd()
+            );
+        } finally {
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, previousFramebuffer);
+            GL30.glDeleteFramebuffers(scratch);
+        }
+    }
+
+    private static String blib$describeCategory(int category) {
+        return switch (category) {
+            case 255 -> "entity";
+            case 223 -> "held item";
+            case 128 -> "terrain";
+            case 64 -> "particle";
+            case 16 -> "celestial";
+            case 0 -> "sky";
+            default -> "NOT A VALID CATEGORY";
+        };
+    }
+
+    private static long blib$lastProbeAt;
+
+    private static final Set<String> WARNED_ARRAY_UNIFORMS = new HashSet<>();
+
     private BLibPostEffectPipeline() {
         throw new UnsupportedOperationException();
     }
 
     public static void run(DeltaTracker deltaTracker) {
-        if (BLibIrisCompat.isShaderModActive()) {
+        // ⭐⭐ STAGE 2: THE PIPELINE NO LONGER STANDS DOWN JUST BECAUSE A SHADER PACK IS RUNNING.
+        // BLibIrisClassificationPass draws the classification into a private framebuffer during the level pass, and
+        // BLibMainTargetMRT's accessors hand back those same textures, so every sampler binding below works unchanged.
+        // The stand-down now means what it should have meant all along: stand down only if a pack owns the pipeline AND
+        // we have no classification of our own to read.
+        if (BLibIrisCompat.isShaderPackActive() && !BLibIrisAuxTarget.INSTANCE.isReady()) {
             return;
         }
 
@@ -61,6 +167,16 @@ public final class BLibPostEffectPipeline {
         if (mainTarget == null) {
             return;
         }
+
+        // ⚠⚠ BIND THE MAINTARGET EXPLICITLY BEFORE TOUCHING ANYTHING. This runs from GameRenderer.render, and other
+        // mods hook the very same method to run their OWN post-processing — Polytone binds its post-shader targets
+        // there. Mixin ordering between two mods at one injection point is ARBITRARY, so "vanilla left the MainTarget
+        // bound" is an assumption we do not get to make. Everything below reads the MainTarget's attachments and blits
+        // back into it; starting from someone else's framebuffer corrupts both their frame and ours.
+        mainTarget.bindWrite(false);
+
+        // Repair the terrain mask immediately before it is consumed. See BLibTerrainMaskFixup.
+        BLibTerrainMaskFixup.runLateRepair();
 
         var fbs = BLibPostEffectFramebuffers.INSTANCE;
         fbs.ensureSize(mainTarget.width, mainTarget.height);
@@ -128,7 +244,14 @@ public final class BLibPostEffectPipeline {
         }
 
         if (inputs.contains(BLibPostEffectInput.DEPTH_TEXTURE)) {
-            shader.setSampler("depthtex0", mainTarget.getDepthTextureId());
+            // The snapshot, not the live attachment: vanilla clears depth for the item in hand before post-processing
+            // runs, so the live one describes only the held item. Falls back to the live attachment if the capture
+            // never happened. See BLibDepthSnapshot.
+            // The snapshot, not the live attachment: vanilla clears depth for the item in hand before post-processing
+            // runs, so the live one describes only the held item. That holds under a shader pack too — pointing this
+            // at the live main-target depth produced a completely flat thermal view. The snapshot is taken at the end
+            // of the level pass, where the depth is real, and is now captured with or without a pack.
+            shader.setSampler("depthtex0", BLibDepthSnapshot.textureId());
         }
 
         if (inputs.contains(BLibPostEffectInput.LIGHTMAP_TEXTURE)) {
@@ -143,6 +266,8 @@ public final class BLibPostEffectPipeline {
 
         if (inputs.contains(BLibPostEffectInput.ENTITY_MASK) && BLibMainTargetMRT.isAttached()) {
             shader.setSampler("entityMask", BLibMainTargetMRT.entityMaskTextureId());
+
+            blib$probeMaskAtCentre();
         }
 
         if (inputs.contains(BLibPostEffectInput.ENTITY_LIGHTMAP) && BLibMainTargetMRT.isAttached()) {
@@ -170,6 +295,9 @@ public final class BLibPostEffectPipeline {
 
         shader.apply();
 
+        // Array uniforms go after apply(): they are pushed straight to the program, which apply() is what binds.
+        applyArrayUniforms(shader, effect.spec().uniforms());
+
         drawFullscreenQuad();
 
         shader.clear();
@@ -177,6 +305,10 @@ public final class BLibPostEffectPipeline {
 
     private static void applyEffectUniforms(ShaderInstance shader, List<BLibPostEffectUniform> uniforms) {
         for (var u : uniforms) {
+            if (u instanceof BLibPostEffectUniform.Float4Array) {
+                continue;
+            }
+
             var slot = shader.getUniform(u.name());
 
             if (slot == null) {
@@ -184,6 +316,7 @@ public final class BLibPostEffectPipeline {
             }
 
             switch (u) {
+                case BLibPostEffectUniform.Float4Array ignored -> { /* pushed in applyArrayUniforms, after apply() */ }
                 case BLibPostEffectUniform.Float1 f -> slot.set(f.value().getAsFloat());
                 case BLibPostEffectUniform.Float2 f -> {
                     var v = f.value().get();
@@ -208,6 +341,67 @@ public final class BLibPostEffectPipeline {
                 }
             }
         }
+    }
+
+    /**
+     * Pushes {@link BLibPostEffectUniform.Float4Array} values directly to the bound program. Vanilla's
+     * {@code ShaderInstance} has no array uniform support — {@code getUniform} returns null for one — so the location
+     * is resolved by name against the program id and uploaded with {@code glUniform4fv}. A location of -1 means the
+     * shader does not declare it (or the linker dropped it as unused), which is not an error.
+     */
+    private static void applyArrayUniforms(ShaderInstance shader, List<BLibPostEffectUniform> uniforms) {
+        for (var u : uniforms) {
+            if (!(u instanceof BLibPostEffectUniform.Float4Array array)) {
+                continue;
+            }
+
+            var location = resolveArrayLocation(shader.getId(), array.name());
+
+            if (location == -1) {
+                continue;
+            }
+
+            var values = array.value().get();
+
+            if (values == null || values.length < 4) {
+                GL20.glUniform4fv(location, new float[4]);
+
+                continue;
+            }
+
+            var count = Math.min(values.length / 4, array.maxCount());
+
+            GL20.glUniform4fv(location, java.util.Arrays.copyOf(values, count * 4));
+        }
+    }
+
+    /**
+     * Resolves an array uniform's location, trying the bare name first and then {@code name[0]}.
+     * <p>
+     * ⚠ The GL spec allows querying an array by its bare name, but not every driver obliges — some only resolve the
+     * subscripted form, and AMD is the usual place this shows up. A silently unresolved location makes an array uniform
+     * look like a feature that simply does nothing, so the miss is logged once per name.
+     */
+    private static int resolveArrayLocation(int programId, String name) {
+        var location = GL20.glGetUniformLocation(programId, name);
+
+        if (location != -1) {
+            return location;
+        }
+
+        location = GL20.glGetUniformLocation(programId, name + "[0]");
+
+        if (location == -1 && WARNED_ARRAY_UNIFORMS.add(name)) {
+            BLib.LOGGER.warn(
+                "[BLib] Post-effect array uniform '{}' resolved to no location (tried '{}' and '{}[0]')."
+                    + " The shader either does not declare it or the linker dropped it as unused.",
+                name,
+                name,
+                name
+            );
+        }
+
+        return location;
     }
 
     private static void drawFullscreenQuad() {

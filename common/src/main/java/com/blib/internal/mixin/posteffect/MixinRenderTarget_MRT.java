@@ -24,7 +24,7 @@ public abstract class MixinRenderTarget_MRT {
 
     @Inject(method = "createBuffers", at = @At("TAIL"))
     private void blib$attachAuxOnResize(int width, int height, boolean clearError, CallbackInfo ci) {
-        if (BLibIrisCompat.isShaderModActive()) {
+        if (BLibIrisCompat.isShaderPackActive()) {
             return;
         }
 
@@ -53,15 +53,24 @@ public abstract class MixinRenderTarget_MRT {
         )
     )
     private void blib$clearAuxiliaryAttachments(boolean clearError, CallbackInfo ci) {
-        if (BLibIrisCompat.isShaderModActive()) {
+        if (BLibIrisCompat.isShaderPackActive()) {
             return;
         }
 
         var self = (RenderTarget) (Object) this;
 
         if (self instanceof MainTarget) {
-            BLibMainTargetMRT.restoreDrawBuffers();
+            // ⚠⚠ ORDER AND BINDING BOTH MATTER. glDrawBuffers and glClearBufferfv act on the DRAW framebuffer, and
+            // glClearBufferfv clears the Nth DRAW BUFFER — so the draw-buffer mapping has to be in place, on the
+            // right framebuffer, before the clear runs. clearAuxiliaryAttachments now binds the MainTarget itself and
+            // restores the previous binding, so this pair no longer depends on what vanilla happened to leave bound.
             BLibMainTargetMRT.clearAuxiliaryAttachments();
+
+            // ⚠ AND AGAIN AFTERWARDS, against the framebuffer vanilla has bound right now. The call inside the clear
+            // runs while the MainTarget is bound EXPLICITLY and then restores the previous binding; this one restores
+            // the draw-buffer mapping in whatever state the rest of the frame expects. Cheap, and dropping it was a
+            // regression risk I do not want to take on a live bug.
+            BLibMainTargetMRT.restoreDrawBuffers();
         }
     }
 }

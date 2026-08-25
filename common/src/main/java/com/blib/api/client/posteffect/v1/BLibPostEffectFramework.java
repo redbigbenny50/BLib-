@@ -2,6 +2,8 @@ package com.blib.api.client.posteffect.v1;
 
 import com.blib.internal.client.posteffect.BLibBackgroundEntityRenderState;
 import com.blib.internal.client.posteffect.BLibIrisCompat;
+import com.blib.internal.client.posteffect.BLibIrisClassificationPass;
+import com.blib.internal.client.posteffect.BLibMaterialIdRenderState;
 
 /**
  * Public utility entry-point for code that interacts with BLib's post-effect framework from outside BLib (e.g. a
@@ -23,7 +25,18 @@ public final class BLibPostEffectFramework {
      *         is cached after the first call.
      */
     public static boolean isShaderModActive() {
-        return BLibIrisCompat.isShaderModActive();
+        return BLibIrisCompat.isShaderPackActive();
+    }
+
+    /**
+     * TRUE ONLY WHILE BLIB'S OWN CLASSIFICATION PASS IS DRAWING, under a shader pack.
+     * <p>
+     * Consumers gate their per-entity classification on {@link #isShaderModActive()}, which is correct for the pack's
+     * own passes and WRONG for this one: the classification pass is the single point under a pack where that work IS
+     * wanted. Pair the two — bail when a shader mod is active AND this is false.
+     */
+    public static boolean isClassificationPassActive() {
+        return BLibIrisClassificationPass.isInsidePass();
     }
 
     /**
@@ -63,5 +76,27 @@ public final class BLibPostEffectFramework {
     /** Marks the end of a {@link #pushBackgroundEntityB()} scope. Safe to call without a matching push (no-ops). */
     public static void popBackgroundEntityB() {
         BLibBackgroundEntityRenderState.popB();
+    }
+
+    /**
+     * Tags the draws inside this scope with an opaque material ID (0-255), delivered to consumer post-effect shaders
+     * through the {@code entityMaterialId} attachment. BLib assigns no meaning to the value — a thermal effect might
+     * read it as how warm a creature runs, something else as a surface response.
+     * <p>
+     * Nested via a stack, so a passenger drawn inside its mount's render restores the mount's ID rather than clearing
+     * to zero. Pair every call with exactly one {@link #popMaterialId()} on the render thread.
+     * <p>
+     * ⚠ Entity vertices are queued into a {@code MultiBufferSource} and the uniform is only pushed when that batch is
+     * flushed — so without ending the batch at the boundary, every entity in a batch samples whichever ID was current
+     * when the flush happened, usually the last one rendered. Call {@code BufferSource.endBatch()} around the scope if
+     * per-entity accuracy matters, exactly as the background-entity lanes require.
+     */
+    public static void pushMaterialId(int materialId) {
+        BLibMaterialIdRenderState.push(materialId);
+    }
+
+    /** Marks the end of a {@link #pushMaterialId(int)} scope. Safe to call without a matching push (no-ops). */
+    public static void popMaterialId() {
+        BLibMaterialIdRenderState.pop();
     }
 }

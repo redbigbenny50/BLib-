@@ -13,8 +13,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.blib.internal.common.event.BLibGlobalEvents;
 
@@ -25,8 +25,14 @@ public abstract class MixinChunkMap_ChunkLoadEvent {
     @Final
     ServerLevel level;
 
+    /**
+     * ⚠ CONCURRENT ON PURPOSE. This is touched from {@code onFullChunkStatusChange}, which vanilla drives from the
+     * server thread — but C2ME moves chunk work onto worker threads and is standard on servers, and a plain
+     * {@code HashSet} corrupting or spinning here would present as a freeze on the chunk path with nothing in the log
+     * to attribute it. The set only ever sees {@code add}/{@code remove}, so the concurrent version costs nothing.
+     */
     @Unique
-    private final Set<ChunkPos> blib$firedChunks = new HashSet<>();
+    private final Set<ChunkPos> blib$firedChunks = ConcurrentHashMap.newKeySet();
 
     /**
      * SAFETY CONTRACT — this callback runs INSIDE the chunk system's own bookkeeping. Vanilla calls

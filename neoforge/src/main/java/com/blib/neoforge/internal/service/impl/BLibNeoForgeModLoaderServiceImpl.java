@@ -61,8 +61,22 @@ public class BLibNeoForgeModLoaderServiceImpl implements BLibModLoaderService {
         return modList
             .getModContainerById(modId)
             .map(mod -> mod.getModInfo().getVersion().toString())
-            .map(Version::parse)
+            .map(BLibNeoForgeModLoaderServiceImpl::parseOrNull)
             .orElse(null);
+    }
+
+    /**
+     * ⚠⚠ NEVER LET A FOREIGN VERSION STRING THROW. This method's contract is "null means unknown", and every caller is
+     * written against that; a mod versioning itself in a way {@link Version} cannot read must degrade to unknown, not
+     * take the game down during mod construction. BLib 0.3.5-fork crashed on startup for everyone running Iris and
+     * Sodium together for exactly this reason.
+     */
+    private static @Nullable Version parseOrNull(String raw) {
+        try {
+            return Version.parse(raw);
+        } catch (RuntimeException exception) {
+            return null;
+        }
     }
 
 }

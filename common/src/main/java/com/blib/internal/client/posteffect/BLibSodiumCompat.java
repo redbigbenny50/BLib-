@@ -54,7 +54,7 @@ public final class BLibSodiumCompat {
     /** True when the fixup pass should run: Sodium present, no shader mod owning the pipeline, and not opted out. */
     public static boolean isTerrainMaskFixupEnabled() {
         return isSodiumActive()
-            && !BLibIrisCompat.isShaderModActive()
+            && !BLibIrisCompat.isShaderPackActive()
             && !"false".equalsIgnoreCase(System.getProperty(FIXUP_ENABLED_PROPERTY));
     }
 }

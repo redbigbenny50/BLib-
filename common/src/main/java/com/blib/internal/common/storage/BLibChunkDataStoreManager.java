@@ -19,15 +19,29 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 
 import com.blib.api.common.registry.v1.BLibHolder;
 import com.blib.api.common.storage.v1.DataStore;
 import com.blib.api.common.storage.v1.DataStoreType;
 
+/**
+ * ⚠⚠ EVERY MAP AND SET IN HERE IS CONCURRENT ON PURPOSE — DO NOT "SIMPLIFY" THEM BACK TO HashMap.
+ * <p>
+ * Vanilla loads and saves chunks on the SERVER THREAD, so plain maps were safe. **C2ME EXISTS TO MOVE THAT WORK ONTO
+ * WORKER THREADS, and it is standard on servers** — so the chunk load/save path this manager hangs off can no longer be
+ * assumed single-threaded. Concurrent {@code computeIfAbsent} on a {@code HashMap} can corrupt the table or spin during
+ * a resize, and a spinning resize on the chunk path presents as a MULTI-SECOND FREEZE while walking into new chunks —
+ * indistinguishable from ordinary worldgen lag, and blamed on whichever mod is most visible.
+ * <p>
+ * ⭐ INSURANCE, NOT A DIAGNOSIS: it was never proven that C2ME reaches these maps off-thread. It is here because the
+ * cost is unmeasurable and the failure it prevents is silent, intermittent and near-impossible to attribute from a bug
+ * report. ⚠ The NESTED maps matter as much as the outer ones — the inner {@code computeIfAbsent} calls are the hot
+ * path.
+ */
 @ApiStatus.Internal
 class BLibChunkDataStoreManager {
 
@@ -47,17 +61,17 @@ class BLibChunkDataStoreManager {
     private static final int REGION_MASK = (1 << REGION_SHIFT) - 1; // 31, for modulo operation
 
     // Chunk stores: dimension -> chunk pos -> store id -> store
-    private final Map<ResourceKey<Level>, Map<ChunkPos, Map<ResourceLocation, DataStore>>> stores = new HashMap<>();
+    private final Map<ResourceKey<Level>, Map<ChunkPos, Map<ResourceLocation, DataStore>>> stores = new ConcurrentHashMap<>();
 
     // Cached region NBT data: dimension -> namespace -> region key -> region tag
-    private final Map<ResourceKey<Level>, Map<String, Map<Long, CompoundTag>>> loadedRegions = new HashMap<>();
+    private final Map<ResourceKey<Level>, Map<String, Map<Long, CompoundTag>>> loadedRegions = new ConcurrentHashMap<>();
 
     // Reference counts for regions: dimension -> region key -> number of tracked chunks
     // When the count reaches 0, the region's cached data is released from memory.
-    private final Map<ResourceKey<Level>, Map<Long, Integer>> regionRefCounts = new HashMap<>();
+    private final Map<ResourceKey<Level>, Map<Long, Integer>> regionRefCounts = new ConcurrentHashMap<>();
 
     // Dirty cached region files: dimension -> namespace -> region key
-    private final Map<ResourceKey<Level>, Map<String, Set<Long>>> dirtyRegions = new HashMap<>();
+    private final Map<ResourceKey<Level>, Map<String, Set<Long>>> dirtyRegions = new ConcurrentHashMap<>();
 
     // ==================== Public Methods ====================
 
@@ -86,9 +100,9 @@ class BLibChunkDataStoreManager {
     ) {
         var levelKey = level.dimension();
         var id = type.getResourceLocation();
-        var levelChunkStores = stores.computeIfAbsent(levelKey, k -> new HashMap<>());
+        var levelChunkStores = stores.computeIfAbsent(levelKey, k -> new ConcurrentHashMap<>());
         var isNewChunk = !levelChunkStores.containsKey(pos);
-        var chunkDataStores = levelChunkStores.computeIfAbsent(pos, p -> new HashMap<>());
+        var chunkDataStores = levelChunkStores.computeIfAbsent(pos, p -> new ConcurrentHashMap<>());
 
         if (isNewChunk && level.hasChunk(pos.x, pos.z)) {
             incrementRegionRefCount(levelKey, pos);
@@ -133,14 +147,14 @@ class BLibChunkDataStoreManager {
         }
 
         // Group stores by namespace and save to appropriate region files
-        var storesByNamespace = new HashMap<String, Map<ResourceLocation, DataStore>>();
+        var storesByNamespace = new ConcurrentHashMap<String, Map<ResourceLocation, DataStore>>();
 
         for (var entry : chunkDataStores.entrySet()) {
             var id = entry.getKey();
             var store = entry.getValue();
 
             storesByNamespace
-                .computeIfAbsent(id.getNamespace(), k -> new HashMap<>())
+                .computeIfAbsent(id.getNamespace(), k -> new ConcurrentHashMap<>())
                 .put(id, store);
         }
 
@@ -213,9 +227,9 @@ class BLibChunkDataStoreManager {
             var store = storeEntry.getValue();
 
             byNamespaceAndRegion
-                .computeIfAbsent(id.getNamespace(), k -> new HashMap<>())
-                .computeIfAbsent(regionKey, k -> new HashMap<>())
-                .computeIfAbsent(pos, k -> new HashMap<>())
+                .computeIfAbsent(id.getNamespace(), k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(regionKey, k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(pos, k -> new ConcurrentHashMap<>())
                 .put(id, store);
         }
     }
@@ -329,8 +343,8 @@ class BLibChunkDataStoreManager {
 
     private void markRegionDirty(ResourceKey<Level> levelKey, String namespace, long regionKey) {
         dirtyRegions
-            .computeIfAbsent(levelKey, k -> new HashMap<>())
-            .computeIfAbsent(namespace, k -> new HashSet<>())
+            .computeIfAbsent(levelKey, k -> new ConcurrentHashMap<>())
+            .computeIfAbsent(namespace, k -> ConcurrentHashMap.newKeySet())
             .add(regionKey);
     }
 
@@ -465,8 +479,8 @@ class BLibChunkDataStoreManager {
         // Update cache
         var levelKey = level.dimension();
         loadedRegions
-            .computeIfAbsent(levelKey, k -> new HashMap<>())
-            .computeIfAbsent(namespace, k -> new HashMap<>())
+            .computeIfAbsent(levelKey, k -> new ConcurrentHashMap<>())
+            .computeIfAbsent(namespace, k -> new ConcurrentHashMap<>())
             .put(regionKey, regionTag);
 
         markRegionDirty(levelKey, namespace, regionKey);
@@ -514,8 +528,8 @@ class BLibChunkDataStoreManager {
         }
 
         loadedRegions
-            .computeIfAbsent(level.dimension(), k -> new HashMap<>())
-            .computeIfAbsent(namespace, k -> new HashMap<>())
+            .computeIfAbsent(level.dimension(), k -> new ConcurrentHashMap<>())
+            .computeIfAbsent(namespace, k -> new ConcurrentHashMap<>())
             .put(regionKey, regionTag);
 
         markRegionDirty(level.dimension(), namespace, regionKey);
@@ -636,8 +650,8 @@ class BLibChunkDataStoreManager {
 
         // Cache the result (even if null, store an empty tag to avoid repeated disk checks)
         loadedRegions
-            .computeIfAbsent(levelKey, k -> new HashMap<>())
-            .computeIfAbsent(namespace, k -> new HashMap<>())
+            .computeIfAbsent(levelKey, k -> new ConcurrentHashMap<>())
+            .computeIfAbsent(namespace, k -> new ConcurrentHashMap<>())
             .put(regionKey, regionTag != null ? regionTag : new CompoundTag());
 
         return regionTag;
@@ -649,7 +663,7 @@ class BLibChunkDataStoreManager {
         var regionKey = getRegionKey(pos);
 
         regionRefCounts
-            .computeIfAbsent(levelKey, k -> new HashMap<>())
+            .computeIfAbsent(levelKey, k -> new ConcurrentHashMap<>())
             .merge(regionKey, 1, Integer::sum);
     }
 

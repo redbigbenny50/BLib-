@@ -11,7 +11,7 @@ import com.blib.internal.client.posteffect.BLibIrisCompat;
 import com.blib.internal.client.posteffect.BLibMainTargetMRT;
 
 /**
- * Hooks {@link MainTarget#createFrameBuffer(int, int)} (the constructor's framebuffer setup) to allocate the MRT
+ * Hooks {@code MainTarget#createFrameBuffer(int, int)} (the constructor's framebuffer setup) to allocate the MRT
  * auxiliary attachments after vanilla's color + depth setup completes. The companion mixin on {@link RenderTarget}
  * handles the resize path.
  * <p>
@@ -22,7 +22,7 @@ public abstract class MixinMainTarget_MRT {
 
     @Inject(method = "createFrameBuffer", at = @At("TAIL"))
     private void blib$attachAuxAttachments(int width, int height, CallbackInfo ci) {
-        if (BLibIrisCompat.isShaderModActive()) {
+        if (BLibIrisCompat.isShaderPackActive()) {
             return;
         }
 

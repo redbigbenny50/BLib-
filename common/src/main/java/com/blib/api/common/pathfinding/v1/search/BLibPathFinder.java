@@ -197,8 +197,31 @@ public final class BLibPathFinder {
 
         var asyncChunkMargin = tuning.asyncChunkMargin();
 
+        // \u2b50\u2b50\u2b50 REFUSE A SEARCH WHOSE PRELOAD BOX IS ABSURD, RATHER THAN FREEZING THE SERVER IN IT.
+        //
+        // \u26a0\u26a0 THE LOOP BELOW CALLS A BLOCKING, GENERATE-IF-ABSENT getChunk ONCE PER CHUNK. The box is sized
+        // purely by how far apart start and target are, so it grows with the SQUARE of the distance - a target a few
+        // thousand blocks away means tens of thousands of chunks, every missing one generated synchronously on the
+        // server thread. Live captures show it parked here for over FORTY SECONDS in a single tick.
+        //
+        // \u26a0 C2ME sharpens this rather than causing it: it reroutes chunk work through its own scheduler, so
+        // blocking the main thread inside that scheduler stalls a system designed to be asynchronous. The same box
+        // that merely stutters on vanilla becomes a multi-second freeze there.
+        //
+        // \u26a0 NO PATH, NOT A PARTIAL ONE. A truncated path toward something thousands of blocks away is an actor
+        // walking hopefully in a direction forever. Every caller already handles NO_PATH; honest failure is what
+        // lets them do something sensible instead.
+        var boxWidth = (long) (maxCX - minCX + 1 + asyncChunkMargin * 2);
+        var boxDepth = (long) (maxCZ - minCZ + 1 + asyncChunkMargin * 2);
+        if (boxWidth * boxDepth > tuning.maxPreloadChunks()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         for (int cx = minCX - asyncChunkMargin; cx <= maxCX + asyncChunkMargin; cx++) {
             for (int cz = minCZ - asyncChunkMargin; cz <= maxCZ + asyncChunkMargin; cz++) {
+                // \u26a0 STILL BLOCKING, BUT NOW BOUNDED. A non-generating getChunkNow would be better again, but it
+                // returns null for a resident-but-unloaded chunk and the evaluator has no null path - that is a
+                // larger change than a cap, and the cap alone removes the freeze.
                 unifiedEvaluator.preloadChunk(cx, cz, level.getChunk(cx, cz));
             }
         }

@@ -28,16 +28,40 @@ public final class BLibIrisCompat {
     }
 
     public static boolean isShaderModActive() {
-        if (!checked) {
-            shaderModActive = BLibInternalClientServices.IRIS_COMPAT.isShaderModActive();
-            checked = true;
+        if (checked) {
+            return shaderModActive;
+        }
 
-            if (shaderModActive) {
-                BLib.LOGGER.info("[BLib] Iris/Oculus detected; post-effects pipeline disabled.");
-            }
+        var service = BLibInternalClientServices.IRIS_COMPAT;
+
+        // ⚠⚠ Only latch an answer the loader can actually give. The first caller is the main render target's
+        // construction, which on NeoForge runs before the mod list exists — caching that "no" meant Iris went
+        // undetected for the entire session and BLib fought it for the framebuffer.
+        if (!service.isDetectionReady()) {
+            return false;
+        }
+
+        shaderModActive = service.isShaderModActive();
+        checked = true;
+
+        if (shaderModActive) {
+            BLib.LOGGER.info("[BLib] Iris/Oculus detected; effects stand down while a pack is in use.");
         }
 
         return shaderModActive;
+    }
+
+    /**
+     * Whether a shader pack is loaded RIGHT NOW. This is the gate everything should use.
+     * <p>
+     * ⚠ Deliberately NOT cached — packs are switched on and off mid-session and the answer has to follow.
+     */
+    public static boolean isShaderPackActive() {
+        if (!isShaderModActive()) {
+            return false;
+        }
+
+        return BLibInternalClientServices.IRIS_COMPAT.isShaderPackInUse();
     }
 
     public static void warnDisabledOnce() {

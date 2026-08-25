@@ -34,7 +34,7 @@ import com.blib.mod.BLib;
  * If the source doesn't match the expected anchors (e.g., Mojang restructures shaders in a future version), the patcher
  * returns the source unchanged and logs a warning rather than producing non-compilable GLSL.
  * <p>
- * Bypassed entirely when {@link BLibIrisCompat#isShaderModActive()} — Iris owns those shaders in that case.
+ * Bypassed entirely when {@link BLibIrisCompat#isShaderPackActive()} — Iris owns those shaders in that case.
  */
 @ApiStatus.Internal
 public final class BLibEntityShaderPatcher {
@@ -116,7 +116,7 @@ public final class BLibEntityShaderPatcher {
     }
 
     public static String transform(String shaderName, Program.Type type, String source) {
-        if (BLibIrisCompat.isShaderModActive()) {
+        if (BLibIrisCompat.isShaderPackActive()) {
             return source;
         }
 
@@ -316,6 +316,7 @@ public final class BLibEntityShaderPatcher {
                 + "uniform int BlibHeldItem;\n"
                 + "uniform int BlibBackgroundEntity;\n"
                 + "uniform int BlibBackgroundEntity2;\n"
+                + "uniform int BlibMaterialId;\n"
                 + "layout(location = 0) out vec4 fragColor;\n"
                 + "layout(location = 1) out vec4 blib_entityMask;\n"
                 + "layout(location = 2) out vec4 blib_entityLightmap;\n"
@@ -362,10 +363,11 @@ public final class BLibEntityShaderPatcher {
         // so the write defaults to 0 and the post shader sees a flat zero ID buffer. A downstream mod that injects the
         // uniform into a shader's source AND wires a per-draw setter (via the public ShaderInstance API) will get
         // their material IDs encoded at byte resolution into the entityMaterialId attachment automatically.
-        var canSampleMaterialId = BLIB_MATERIAL_ID_DECL.matcher(source).find();
-        var materialIdWrite = canSampleMaterialId
-            ? "    blib_entityMaterialId = vec4(float(BlibMaterialId & 0xFF) / 255.0, 0.0, 0.0, 1.0);\n"
-            : "    blib_entityMaterialId = vec4(0.0, 0.0, 0.0, 1.0);\n";
+        // The uniform is now injected above for every patched entity shader, so the write is unconditional. It reads 0
+        // unless a consumer sets it per draw (BLibPostEffectFramework.setMaterialId), which is exactly the old
+        // behaviour for anyone who does not. Vanilla shaders never declared it themselves, which is why the tiers in
+        // consumer post shaders sat unreachable.
+        var materialIdWrite = "    blib_entityMaterialId = vec4(float(BlibMaterialId & 0xFF) / 255.0, 0.0, 0.0, 1.0);\n";
 
         // LPV voxelization is now in the vertex shader (see patchVertex above) — fragment-stage imageStore was
         // silently dropped by the chunk-rendering path on the test driver while same-shader held-item fragments
