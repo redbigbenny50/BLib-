@@ -1,5 +1,6 @@
 package com.blib.api.client.render.v1;
 
+import com.mojang.blaze3d.vertex.VertexFormat;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
@@ -10,6 +11,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import com.blib.api.client.animation.v1.animator.AzAnimator;
@@ -17,6 +19,12 @@ import com.blib.api.client.model.v1.AzBone;
 import com.blib.api.client.render.v1.layer.AzRenderLayer;
 
 public class AzRendererConfig<K, T> {
+
+    /**
+     * AzureLib 3.2.3 (ported Oct 31) - which render types are sorted back to front together across the model, its
+     * layers and re-renders, or {@code null} for no sorting (the default).
+     */
+    private @Nullable Predicate<RenderType> translucencySortFilter;
 
     private final Supplier<@Nullable AzAnimator<K, T>> animatorProvider;
 
@@ -187,7 +195,53 @@ public class AzRendererConfig<K, T> {
         return boneVisibilityFilter;
     }
 
+    /**
+     * Copies options that live on the base config only (translucency sorting) onto a subclass config built from it.
+     * Subclass builders call this on the config they build.
+     *
+     * @param base the base config the subclass builder built first
+     */
+    protected void copyBaseOptions(AzRendererConfig<K, T> base) {
+        this.translucencySortFilter = base.translucencySortFilter;
+    }
+
+    /** @return the render types sorted back to front, or {@code null} when sorting is off */
+    public @Nullable Predicate<RenderType> translucencySortFilter() {
+        return translucencySortFilter;
+    }
+
     public static class Builder<K, T> {
+
+        private @Nullable Predicate<RenderType> translucencySortFilter;
+
+        /**
+         * AzureLib 3.2.3 (ported Oct 31) - sorts all of this renderer's translucent geometry back to front together:
+         * the model, its render layers, re-renders and bones with their own render type. Fixes see-through parts drawn
+         * in one pass hiding see-through parts of another pass behind them (an inner glass layer vanishing behind an
+         * outer shell). Off by default: it copies the translucent vertices of each render and costs a draw call
+         * wherever the sorted order switches render type.
+         *
+         * @param enabled {@code true} to sort vanilla's translucent render types
+         * @return this builder
+         */
+        public Builder<K, T> setTranslucencySorting(boolean enabled) {
+            this.translucencySortFilter = enabled ? AzTranslucencySorter.DEFAULT_FILTER : null;
+            return this;
+        }
+
+        /**
+         * Like {@link #setTranslucencySorting(boolean)}, choosing which render types are sorted, e.g. a custom
+         * translucent render type vanilla does not sort. Only quad render types can be sorted.
+         *
+         * @param sortedRenderTypes which render types to sort, or {@code null} to turn sorting off
+         * @return this builder
+         */
+        public Builder<K, T> setTranslucencySorting(@Nullable Predicate<RenderType> sortedRenderTypes) {
+            this.translucencySortFilter = sortedRenderTypes == null
+                ? null
+                : sortedRenderTypes.and(renderType -> renderType.mode() == VertexFormat.Mode.QUADS);
+            return this;
+        }
 
         protected final BiFunction<@Nullable Entity, T, ResourceLocation> modelLocationProvider;
 
@@ -362,7 +416,7 @@ public class AzRendererConfig<K, T> {
         }
 
         public AzRendererConfig<K, T> build() {
-            return new AzRendererConfig<>(
+            AzRendererConfig<K, T> config = new AzRendererConfig<>(
                 animatorProvider,
                 modelLocationProvider,
                 modelRendererProvider,
@@ -380,6 +434,9 @@ public class AzRendererConfig<K, T> {
                 boneRenderTypeOverrideProvider,
                 boneVisibilityFilter
             );
+
+            config.translucencySortFilter = translucencySortFilter;
+            return config;
         }
     }
 }

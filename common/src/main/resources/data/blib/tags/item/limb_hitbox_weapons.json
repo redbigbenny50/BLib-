@@ -1,0 +1,49 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:swords",
+    "#minecraft:axes",
+    "minecraft:trident",
+    "minecraft:mace",
+    {
+      "id": "avp_human:tactical_knife",
+      "required": false
+    },
+    {
+      "id": "avp_human:steel_sword",
+      "required": false
+    },
+    {
+      "id": "avp_human:titanium_sword",
+      "required": false
+    },
+    {
+      "id": "avp_human:steel_axe",
+      "required": false
+    },
+    {
+      "id": "avp_human:titanium_axe",
+      "required": false
+    },
+    {
+      "id": "avp_predator:plasma_sword",
+      "required": false
+    },
+    {
+      "id": "avp_predator:veritanium_sword",
+      "required": false
+    },
+    {
+      "id": "avp_predator:veritanium_axe",
+      "required": false
+    },
+    {
+      "id": "avp_predator:battleaxe",
+      "required": false
+    },
+    {
+      "id": "avp_predator:combi_stick",
+      "required": false
+    }
+  ]
+}

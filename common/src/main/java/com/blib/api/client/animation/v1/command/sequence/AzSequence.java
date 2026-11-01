@@ -293,8 +293,10 @@ public final class AzSequence {
                 ensureNotAfterFinalStage(other.stages.getFirst().name());
             }
 
+            // AzureLib 3.2.2 (ported Oct 31) - anchored events move with their stage; tick events by the offset.
+            var stageOffset = stages.size();
             stages.addAll(other.stages);
-            other.events.forEach(event -> events.add(new AzSequenceEvent(event.name(), event.tick() + offsetTicks)));
+            other.events.forEach(event -> events.add(event.shifted(stageOffset, offsetTicks)));
             return this;
         }
 
@@ -347,6 +349,77 @@ public final class AzSequence {
 
             events.add(new AzSequenceEvent(name, tick));
             return this;
+        }
+
+        /**
+         * AzureLib 3.2.2 (ported Oct 31) - a stage that plays until {@code freezeTick} (animation ticks) and holds that
+         * pose. Like {@code then(name, FREEZE_ON_FRAME, p -> p.withFreezeTickOffset(freezeTick))}.
+         *
+         * @param animationName the animation to play
+         * @param freezeTick    the tick on the animation's own timeline to freeze on; must be above 0
+         * @return this builder
+         */
+        public Builder freeze(String animationName, double freezeTick) {
+            if (!(freezeTick > 0)) {
+                throw new IllegalArgumentException("Freeze tick for '" + animationName + "' must be above 0, was " + freezeTick);
+            }
+
+            return then(animationName, AzPlayBehaviors.FREEZE_ON_FRAME, properties -> properties.withFreezeTickOffset(freezeTick));
+        }
+
+        /**
+         * AzureLib 3.2.2 (ported Oct 31) - an event when the LAST stage added so far reaches {@code keyframeTick} on
+         * its own animation timeline (the tick Blockbench shows). Unlike {@link #event}, it follows playback speed,
+         * start offsets, transitions, repeats and earlier stages' lengths. Needs the animation lengths: on the client
+         * the player reads them from the animation file; on the server pass them in with {@link AzSequenceTiming}.
+         *
+         * @param name         the event name
+         * @param keyframeTick the tick on the stage animation's timeline
+         * @return this builder
+         */
+        public Builder eventAt(String name, double keyframeTick) {
+            requireName(name, "Event name");
+
+            if (keyframeTick < 0) {
+                throw new IllegalArgumentException("Event '" + name + "' has a negative keyframe tick: " + keyframeTick);
+            }
+
+            events.add(new AzSequenceEvent(name, 0, lastStageIndex(name), keyframeTick, AzSequenceEvent.Anchor.KEYFRAME));
+            return this;
+        }
+
+        /**
+         * AzureLib 3.2.2 (ported Oct 31) - an event when the last stage added so far starts playing (after the
+         * transition into it).
+         *
+         * @param name the event name
+         * @return this builder
+         */
+        public Builder eventOnStart(String name) {
+            requireName(name, "Event name");
+            events.add(new AzSequenceEvent(name, 0, lastStageIndex(name), 0, AzSequenceEvent.Anchor.STAGE_START));
+            return this;
+        }
+
+        /**
+         * AzureLib 3.2.2 (ported Oct 31) - an event when the last stage added so far finishes: after its last repeat,
+         * at its freeze point, or at the end of the first pass for looping, ping-pong and holding stages.
+         *
+         * @param name the event name
+         * @return this builder
+         */
+        public Builder eventOnEnd(String name) {
+            requireName(name, "Event name");
+            events.add(new AzSequenceEvent(name, 0, lastStageIndex(name), 0, AzSequenceEvent.Anchor.STAGE_END));
+            return this;
+        }
+
+        private int lastStageIndex(String eventName) {
+            if (stages.isEmpty()) {
+                throw new IllegalStateException("Event '" + eventName + "' is anchored to a stage, but no stage was added yet");
+            }
+
+            return stages.size() - 1;
         }
 
         /** @return the sequence */

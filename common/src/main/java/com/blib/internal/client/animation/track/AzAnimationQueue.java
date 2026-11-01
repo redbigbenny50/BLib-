@@ -33,6 +33,17 @@ public class AzAnimationQueue {
         return animationQueue.poll();
     }
 
+    /**
+     * AzureLib 3.2.3 (ported Oct 31) - replaces this queue's contents with {@code other}'s, in order. Used to bring an
+     * overlay track onto the same stage as its base track.
+     *
+     * @param other the queue to copy
+     */
+    public void copyFrom(AzAnimationQueue other) {
+        animationQueue.clear();
+        animationQueue.addAll(other.animationQueue);
+    }
+
     public void clear() {
         animationQueue.clear();
     }

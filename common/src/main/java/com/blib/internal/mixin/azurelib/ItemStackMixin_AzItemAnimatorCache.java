@@ -21,14 +21,38 @@ public abstract class ItemStackMixin_AzItemAnimatorCache implements AzAnimatorAc
         var itemStack = AzureLibUtil.<ItemStack>self(this);
         // Stored for the view currently being rendered on this thread (DEFAULT outside rendering).
         AzIdentifiableItemStackAnimatorCache.getInstance()
-            .add(itemStack, com.blib.api.client.animation.v1.animator.AzItemAnimatorView.current(), (AzItemAnimator) animator);
+            .add(
+                cacheKey(itemStack),
+                itemStack,
+                com.blib.api.client.animation.v1.animator.AzItemAnimatorView.current(),
+                (AzItemAnimator) animator
+            );
     }
 
     @Override
     public @Nullable AzAnimator<UUID, ItemStack> getAnimatorOrNull() {
         var self = AzureLibUtil.<ItemStack>self(this);
-        var uuid = self.getComponents().get(BLibDataComponents.AZ_ID.get());
         return AzIdentifiableItemStackAnimatorCache.getInstance()
-            .getOrNull(uuid, com.blib.api.client.animation.v1.animator.AzItemAnimatorView.current());
+            .getOrNull(cacheKey(self), com.blib.api.client.animation.v1.animator.AzItemAnimatorView.current());
+    }
+
+    /**
+     * The stack's own id when it has one (an item in use); otherwise ONE shared key per item.
+     * <p>
+     * Oct 29: identity items only carry an id while equipped now (see AzItemIdentity), so the same item drawn as an
+     * inventory icon, in a storage screen or on the ground has none. Without a key it would get a brand-new animator -
+     * with its own deep-copied model - on every frame it is drawn. One shared animator per item avoids that; it is also
+     * an improvement for animated items that never had an id at all, which rebuilt every frame before.
+     */
+    private static @Nullable UUID cacheKey(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return null;
+        }
+        var id = stack.getComponents().get(BLibDataComponents.AZ_ID.get());
+        if (id != null) {
+            return id;
+        }
+        var itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return UUID.nameUUIDFromBytes(("blib:shared_item_animator:" + itemId).getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 }

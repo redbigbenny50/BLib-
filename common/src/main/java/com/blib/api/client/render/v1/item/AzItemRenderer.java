@@ -15,6 +15,7 @@ import com.blib.api.client.animation.v1.animator.AzItemAnimator;
 import com.blib.api.client.model.v1.AzBakedModel;
 import com.blib.api.client.render.v1.item.pipeline.AzItemRendererPipeline;
 import com.blib.api.client.render.v1.item.pipeline.AzItemRendererPipelineContext;
+import com.blib.internal.client.animation.molang.AzMolangQueryContext;
 import com.blib.internal.client.render.AzProvider;
 import com.blib.internal.client.render.item.AzItemGuiRenderUtil;
 import com.blib.mod.common.registry.init.BLibDataComponents;
@@ -56,6 +57,8 @@ public abstract class AzItemRenderer {
         // Oct 14 (AzureLib port) - everything below that looks up the stack's animator (provider, layers, model
         // renderer) resolves to the animator for this display context's view.
         var previousView = com.blib.api.client.animation.v1.animator.AzItemAnimatorView.push(config.animatorView(transformType));
+        // AzureLib 3.2.3 (ported Oct 31) - lets Molang answer query.is_first_person for the item's own view.
+        var previousDisplay = AzMolangQueryContext.INSTANCE.setItemDisplayContext(transformType);
 
         try {
             var context = rendererPipeline.context();
@@ -68,6 +71,7 @@ public abstract class AzItemRenderer {
 
             AzItemGuiRenderUtil.renderInGui(config, rendererPipeline, stack, model, stack, poseStack, source, packedLight);
         } finally {
+            AzMolangQueryContext.INSTANCE.setItemDisplayContext(previousDisplay);
             com.blib.api.client.animation.v1.animator.AzItemAnimatorView.restore(previousView);
         }
     }
@@ -81,10 +85,12 @@ public abstract class AzItemRenderer {
     ) {
         // Oct 14 (AzureLib port) - see renderByGui.
         var previousView = com.blib.api.client.animation.v1.animator.AzItemAnimatorView.push(config.animatorView(transformType));
+        var previousDisplay = AzMolangQueryContext.INSTANCE.setItemDisplayContext(transformType);
 
         try {
             renderByItemInView(stack, transformType, poseStack, source, packedLight);
         } finally {
+            AzMolangQueryContext.INSTANCE.setItemDisplayContext(previousDisplay);
             com.blib.api.client.animation.v1.animator.AzItemAnimatorView.restore(previousView);
         }
     }

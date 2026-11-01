@@ -220,7 +220,8 @@ public class AzModelRenderer<K, T> {
      * Renders the {@link GeoCube GeoCubes} associated with a given {@link AzBone}
      */
     protected void renderCubesOfBone(AzRendererPipelineContext<K, T> context, AzBone bone) {
-        if (bone.isHidden()) {
+        // Blockbench hitbox_ groups only shape server-side limb hitboxes; they are never drawn.
+        if (bone.isHidden() || bone.isHitboxBone()) {
             return;
         }
 

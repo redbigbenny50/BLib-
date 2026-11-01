@@ -12,6 +12,9 @@ import com.blib.api.client.profiling.v1.AzProfiler;
 
 public abstract class AzRendererPipeline<K, T> implements AzPhasedRenderer<K, T> {
 
+    /** AzureLib 3.2.3 (ported Oct 31) - used only when the config turns translucency sorting on. */
+    private final AzTranslucencySorter translucencySorter = new AzTranslucencySorter();
+
     protected final AzRendererConfig<K, T> config;
 
     private final AzRendererPipelineContext<K, T> context;
@@ -47,6 +50,18 @@ public abstract class AzRendererPipeline<K, T> implements AzPhasedRenderer<K, T>
         int packedLight
     ) {
         AzProfiler.begin(AzProfileStage.RENDER, animatable);
+
+        // AzureLib 3.2.3 (ported Oct 31) - opt-in translucency sorting: everything this render draws goes through the
+        // sorter, which draws the translucent part back to front at the end.
+        var originalBufferSource = bufferSource;
+        var sortFilter = config.translucencySortFilter();
+        var sorting = sortFilter != null && !translucencySorter.isActive();
+
+        if (sorting) {
+            translucencySorter.begin(bufferSource, sortFilter);
+            bufferSource = translucencySorter;
+        }
+
         renderType = context.getDefaultRenderType(
             animatable,
             config.textureLocation(context.currentEntity, animatable),
@@ -68,20 +83,36 @@ public abstract class AzRendererPipeline<K, T> implements AzPhasedRenderer<K, T>
 
         poseStack.pushPose();
 
-        AzProfiler.begin(AzProfileStage.PRE_RENDER, animatable);
-        preRender(context, false);
-        AzProfiler.end(AzProfileStage.PRE_RENDER);
+        var completed = false;
 
-        layerRenderer.preApplyRenderLayers(context);
-        modelRenderer.cacheTexture(context);
-        AzProfiler.begin(AzProfileStage.MODEL_RENDER, animatable);
-        modelRenderer.render(context, false);
-        AzProfiler.end(AzProfileStage.MODEL_RENDER);
-        modelRenderer.clearCacheTexture();
-        AzProfiler.begin(AzProfileStage.RENDER_LAYERS, animatable);
-        layerRenderer.applyRenderLayers(context);
-        AzProfiler.end(AzProfileStage.RENDER_LAYERS);
-        postRender(context, false);
+        try {
+            AzProfiler.begin(AzProfileStage.PRE_RENDER, animatable);
+            preRender(context, false);
+            AzProfiler.end(AzProfileStage.PRE_RENDER);
+
+            layerRenderer.preApplyRenderLayers(context);
+            modelRenderer.cacheTexture(context);
+            AzProfiler.begin(AzProfileStage.MODEL_RENDER, animatable);
+            modelRenderer.render(context, false);
+            AzProfiler.end(AzProfileStage.MODEL_RENDER);
+            modelRenderer.clearCacheTexture();
+            AzProfiler.begin(AzProfileStage.RENDER_LAYERS, animatable);
+            layerRenderer.applyRenderLayers(context);
+            AzProfiler.end(AzProfileStage.RENDER_LAYERS);
+            postRender(context, false);
+            completed = true;
+        } finally {
+            if (sorting) {
+                if (completed) {
+                    translucencySorter.end();
+                } else {
+                    translucencySorter.abort();
+                }
+
+                // Name tags, leashes and other extras drawn by renderFinal go straight to the real buffer source.
+                context.setMultiBufferSource(originalBufferSource);
+            }
+        }
 
         poseStack.popPose();
 

@@ -81,8 +81,14 @@ public class AzIdentifiableItemStackAnimatorCache {
     }
 
     public synchronized void add(ItemStack itemStack, AzItemAnimatorView view, AzItemAnimator animator) {
-        var uuid = itemStack.get(BLibDataComponents.AZ_ID.get());
+        add(itemStack.get(BLibDataComponents.AZ_ID.get()), itemStack, view, animator);
+    }
 
+    /**
+     * Oct 29: stores the animator under an explicit key - the stack's own id, or the per-item shared key that
+     * ItemStackMixin_AzItemAnimatorCache uses for a stack that has no id (an item not in use).
+     */
+    public synchronized void add(@Nullable UUID uuid, ItemStack itemStack, AzItemAnimatorView view, AzItemAnimator animator) {
         if (uuid == null || animator == null) {
             return;
         }

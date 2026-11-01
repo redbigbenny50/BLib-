@@ -5,6 +5,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.UUID;
 import java.util.function.DoubleSupplier;
 
+import com.blib.internal.client.animation.molang.AzMolangQueryContext;
 import com.blib.internal.client.render.util.RenderUtil;
 import com.blib.internal.common.molang.MolangQueries;
 import com.blib.internal.common.molang.MolangVariableRef;
@@ -74,6 +75,14 @@ public abstract class AzItemAnimator extends AzAnimator<UUID, ItemStack> {
         super.applyMolangQueries(animatable, animTime, partialTicks);
 
         this.currentStack = animatable;
+
+        // AzureLib 3.2.3 (ported Oct 31) - like a Bedrock attachable, entity queries answer for whoever is holding the
+        // item, if anyone (recorded by MixinItemRenderer for the length of the render).
+        var holder = AzMolangQueryContext.INSTANCE.itemHolder();
+
+        if (holder != null) {
+            AzMolangQueryContext.INSTANCE.bind(holder, partialTicks);
+        }
 
         ITEM_CURRENT_DURABILITY_REF.setMemoized(currentDurabilitySupplier);
         ITEM_IS_ENCHANTED_REF.setMemoized(isEnchantedSupplier);

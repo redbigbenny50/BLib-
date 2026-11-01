@@ -16,6 +16,7 @@ import com.blib.internal.client.dismemberment.LimbVisualsLoader;
 import com.blib.internal.client.model.AzBakedModelCache;
 import com.blib.internal.client.render.item.config.BLibItemRendererConfigLoader;
 import com.blib.internal.common.dismemberment.LimbDefinitionDataLoader;
+import com.blib.internal.common.dismemberment.LimbHitboxSettingsLoader;
 import com.blib.mod.BLib;
 
 public class BLibReloadListeners {
@@ -25,6 +26,7 @@ public class BLibReloadListeners {
     public static void initialize() {
         REGISTRY.register("azurelib_cache", BLibReloadListeners::reload, PackType.CLIENT_RESOURCES);
         REGISTRY.register("blib_limbs", new LimbDefinitionDataLoader(), PackType.SERVER_DATA);
+        REGISTRY.register("blib_hitboxes", new LimbHitboxSettingsLoader(), PackType.SERVER_DATA);
         // Client-side visuals reload listener is only relevant in client environments — the registry it populates has
         // no server-side counterpart. Guarding the registration avoids referencing client-only classes on a dedicated
         // server when the listener constructor is invoked at mod init.

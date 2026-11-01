@@ -39,6 +39,15 @@ import com.blib.api.common.color.v1.Color;
  */
 public class AzAutoGlowingLayer<K, T> implements AzRenderLayer<K, T> {
 
+    /**
+     * AzureLib 3.2.3 (ported Oct 31) - the glow is drawn over the model's own surfaces, so sorting it with the model
+     * would only add a draw call per switch.
+     */
+    @Override
+    public boolean sortsTranslucency() {
+        return false;
+    }
+
     private static final int NO_TINT = 0xFFFFFFFF;
 
     /** Whether a subclass picks its own render type, in which case the glowmask coverage may not apply. */

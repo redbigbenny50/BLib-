@@ -171,6 +171,13 @@ public abstract class AzRendererPipelineContext<K, T> {
         return multiBufferSource;
     }
 
+    /**
+     * AzureLib 3.2.3 (ported Oct 31) - swaps the buffer source, e.g. back to the real one after translucency sorting.
+     */
+    public void setMultiBufferSource(MultiBufferSource multiBufferSource) {
+        this.multiBufferSource = multiBufferSource;
+    }
+
     public int packedLight() {
         return packedLight;
     }

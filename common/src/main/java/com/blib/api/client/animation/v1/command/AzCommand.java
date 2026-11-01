@@ -181,6 +181,8 @@ public record AzCommand<T>(List<AzAction<T>> actions) {
 
         if (animator != null) {
             actions.forEach(action -> action.handle(animator));
+            // AzureLib 3.2.3 (ported Oct 31) - animated overlay layers follow every command their base animator gets.
+            animator.forEachLinkedAnimator(linked -> actions.forEach(action -> action.handle((AzAnimator<?, T>) linked)));
             return;
         }
 

@@ -30,18 +30,60 @@ public class AzLayerRenderer<K, T> {
 
         if (layers instanceof List<AzRenderLayer<K, T>> list) {
             for (int i = 0, size = list.size(); i < size; i++) {
-                list.get(i).renderForBone(context, bone);
+                renderLayerForBone(context, list.get(i), bone);
             }
         } else {
             for (var renderLayer : layers) {
-                renderLayer.renderForBone(context, bone);
+                renderLayerForBone(context, renderLayer, bone);
             }
         }
     }
 
     protected void applyRenderLayers(AzRendererPipelineContext<K, T> context) {
         for (var renderLayer : renderLayerSupplier.get()) {
-            renderLayer.render(context);
+            var sorter = unsortedSorter(context, renderLayer);
+
+            if (sorter == null) {
+                renderLayer.render(context);
+                continue;
+            }
+
+            sorter.pushUnsorted();
+
+            try {
+                renderLayer.render(context);
+            } finally {
+                sorter.popUnsorted();
+            }
         }
+    }
+
+    private void renderLayerForBone(AzRendererPipelineContext<K, T> context, AzRenderLayer<K, T> layer, AzBone bone) {
+        var sorter = unsortedSorter(context, layer);
+
+        if (sorter == null) {
+            layer.renderForBone(context, bone);
+            return;
+        }
+
+        sorter.pushUnsorted();
+
+        try {
+            layer.renderForBone(context, bone);
+        } finally {
+            sorter.popUnsorted();
+        }
+    }
+
+    /**
+     * AzureLib 3.2.3 (ported Oct 31) - the active sorter, when this layer opts out of translucency sorting
+     * ({@link AzRenderLayer#sortsTranslucency()}); {@code null} otherwise, which is the cheap common case.
+     */
+    private static AzTranslucencySorter unsortedSorter(AzRendererPipelineContext<?, ?> context, AzRenderLayer<?, ?> layer) {
+        if (!layer.sortsTranslucency() && context.multiBufferSource() instanceof AzTranslucencySorter sorter && sorter.isActive()) {
+            return sorter;
+        }
+
+        return null;
     }
 }

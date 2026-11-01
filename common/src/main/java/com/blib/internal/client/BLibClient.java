@@ -23,6 +23,8 @@ public final class BLibClient {
         MOD.registries().registerEntityRenderer(BLibEntityTypes.DISMEMBERED_LIMB, LimbEntityRenderer::new);
         MOD.registries().registerEntityRenderer(BLibEntityTypes.TEST_GOAP_MOB, TestGOAPMobRenderer::new);
         BuiltInModelPartResolvers.register();
+        // AzureLib 3.2.3 (ported Oct 31) - bone sockets follow the rendered bones on the client.
+        com.blib.api.client.socket.v1.AzBoneSocketsClient.install();
     }
 
     @ApiStatus.Internal

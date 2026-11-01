@@ -23,6 +23,7 @@
     "MixinLivingEntity_BLibShieldBlocking",
     "MixinLivingEntity_BypassesArmorOnly",
     "MixinLivingEntity_Dismemberable",
+    "MixinLivingEntity_LimbHitboxImpacts",
     "MixinLivingEntity_GOAPUser",
     "MixinLivingEntity_PerfTravel",
     "MixinLivingEntity_PerfBaseTick",
@@ -45,7 +46,9 @@
     "server.MixinServerLevel_BlockBreakProgressManager",
     "server.MixinServerLevel_Events",
     "server.MixinServerLevel_PerfEntityTick",
-    "server.MixinLevel_PerfBlockEntityTick"
+    "server.MixinLevel_PerfBlockEntityTick",
+    "azurelib.LivingEntityMixin_AzItemIdentityLifecycle",
+    "azurelib.ItemEntityMixin_AzItemIdentityStrip"
   ],
   "client": [
     "azurelib.BlockEntityMixin_AzBlockEntityAnimatorCache",
@@ -55,6 +58,7 @@
     "azurelib.TextureManagerMixin",
     "MixinDebugRenderer",
     "MixinEntityRenderDispatcher_Accessor",
+    "MixinEntityRenderDispatcher_LimbHitboxes",
     "MixinHumanoidArmorLayer_Dismemberment",
     "MixinItemInHandLayer_Dismemberment",
     "MixinLivingEntityRenderer_Accessor",

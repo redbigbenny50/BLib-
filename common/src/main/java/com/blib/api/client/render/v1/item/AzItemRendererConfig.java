@@ -349,7 +349,7 @@ public class AzItemRendererConfig extends AzRendererConfig<UUID, ItemStack> {
         public AzItemRendererConfig build() {
             var baseConfig = super.build();
 
-            return new AzItemRendererConfig(
+            AzItemRendererConfig config = new AzItemRendererConfig(
                 baseConfig::createAnimator,
                 baseConfig::modelLocation,
                 baseConfig::getRenderType,
@@ -371,6 +371,9 @@ public class AzItemRendererConfig extends AzRendererConfig<UUID, ItemStack> {
                 baseConfig::boneRenderTypeOverrideProvider,
                 baseConfig.boneVisibilityFilter()
             );
+            // AzureLib 3.2.3 - carry base-only options such as translucency sorting over.
+            config.copyBaseOptions(baseConfig);
+            return config;
         }
     }
 }

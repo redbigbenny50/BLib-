@@ -215,6 +215,16 @@ public class AzAnimationTrack<T> extends AzAbstractAnimationTrack {
         );
     }
 
+    /**
+     * AzureLib 3.2.3 (ported Oct 31) - plays {@code sequence} from its start, replacing whatever runs, to make this
+     * track follow another one (animated overlay layers).
+     *
+     * @param sequence the sequence to play
+     */
+    public void mirrorSequence(@NotNull AzAnimationSequence sequence) {
+        runReplay(sequence);
+    }
+
     public void run(@NotNull AzAnimationSequence sequence, @NotNull AzDispatchPolicy policy) {
         if (sequence.stages().isEmpty()) {
             stateMachine.stop();
@@ -350,6 +360,41 @@ public class AzAnimationTrack<T> extends AzAbstractAnimationTrack {
 
     public AzAnimationTrackTimer<T> trackTimer() {
         return trackTimer;
+    }
+
+    /**
+     * AzureLib 3.2.2 (ported Oct 31) - a timing for placing stage-anchored sequence events on the client: this track's
+     * speed, transition, start offset, freeze point, repeat count and direction, and every animation's length read from
+     * the animation file. Give it to {@code AzSequencePlayer#withTiming}.
+     *
+     * @return the timing
+     */
+    public com.blib.api.client.animation.v1.command.sequence.AzSequenceTiming sequenceTiming() {
+        var properties = animationProperties;
+        var context = animator.context();
+        var animatable = context == null ? null : context.animatable();
+
+        return com.blib.api.client.animation.v1.command.sequence.AzSequenceTiming.builder()
+            .animationSpeed(properties.animationSpeed())
+            .transitionLength(properties.transitionLength())
+            .startTickOffset(properties.startTickOffset())
+            .freezeTickOffset(properties.freezeTickOffset())
+            .repeatXTimes(properties.repeatXTimes())
+            .reversing(properties.isReversing())
+            .lengthResolver(name -> {
+                if (animatable == null) {
+                    return Double.NaN;
+                }
+
+                var animation = animator.getAnimation(animatable, name);
+                return animation == null ? Double.NaN : animation.length();
+            })
+            .build();
+    }
+
+    /** AzureLib 3.2.3 (ported Oct 31) - the sequence this track is running, or {@code null}. Blend spaces use it. */
+    public @Nullable AzAnimationSequence currentSequence() {
+        return currentSequence;
     }
 
     public @Nullable AzQueuedAnimation currentAnimation() {

@@ -215,7 +215,7 @@ public class AzBlockEntityRendererConfig<T extends BlockEntity> extends AzRender
         public AzBlockEntityRendererConfig<T> build() {
             var baseConfig = super.build();
 
-            return new AzBlockEntityRendererConfig<>(
+            AzBlockEntityRendererConfig<T> config = new AzBlockEntityRendererConfig<>(
                 baseConfig::createAnimator,
                 baseConfig::modelLocation,
                 baseConfig::getRenderType,
@@ -233,6 +233,9 @@ public class AzBlockEntityRendererConfig<T extends BlockEntity> extends AzRender
                 baseConfig::boneRenderTypeOverrideProvider,
                 baseConfig.boneVisibilityFilter()
             );
+            // AzureLib 3.2.3 - carry base-only options such as translucency sorting over.
+            config.copyBaseOptions(baseConfig);
+            return config;
         }
     }
 }

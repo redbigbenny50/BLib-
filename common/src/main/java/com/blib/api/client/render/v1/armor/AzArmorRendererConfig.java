@@ -228,7 +228,7 @@ public class AzArmorRendererConfig extends AzRendererConfig<UUID, ItemStack> {
         public AzArmorRendererConfig build() {
             var baseConfig = super.build();
 
-            return new AzArmorRendererConfig(
+            AzArmorRendererConfig config = new AzArmorRendererConfig(
                 baseConfig::createAnimator,
                 boneProvider,
                 baseConfig::getRenderType,
@@ -247,6 +247,9 @@ public class AzArmorRendererConfig extends AzRendererConfig<UUID, ItemStack> {
                 baseConfig::boneRenderTypeOverrideProvider,
                 baseConfig.boneVisibilityFilter()
             );
+            // AzureLib 3.2.3 - carry base-only options such as translucency sorting over.
+            config.copyBaseOptions(baseConfig);
+            return config;
         }
     }
 }

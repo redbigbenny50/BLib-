@@ -5,11 +5,16 @@ import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.DoubleSupplier;
 
+import com.blib.api.client.animation.v1.pose.AzPoseLayer;
+import com.blib.api.client.animation.v1.pose.AzPoseModifierRegistry;
+import com.blib.api.client.animation.v1.pose.AzPoseModifiers;
 import com.blib.api.client.animation.v1.track.AzAnimationTrackContainer;
 import com.blib.api.client.profiling.v1.AzProfileStage;
 import com.blib.api.client.profiling.v1.AzProfiler;
@@ -19,6 +24,7 @@ import com.blib.internal.client.animation.cache.AzBoneCache;
 import com.blib.internal.client.animation.molang.AzMolangQueryContext;
 import com.blib.internal.client.animation.primitive.AzBakedAnimation;
 import com.blib.internal.common.molang.MolangQueries;
+import com.blib.internal.common.molang.MolangScope;
 import com.blib.internal.common.molang.MolangVariableRef;
 import com.blib.mod.BLib;
 
@@ -58,6 +64,16 @@ public abstract class AzAnimator<K, T> {
     private static final Set<ResourceLocation> MISSING_ANIMATION_FILES = ConcurrentHashMap.newKeySet();
 
     private AzAnimationContext<T> currentContext;
+
+    /** AzureLib 3.2.3 (ported Oct 31) - procedural pose modifiers, registered once on first use. */
+    private final AzPoseModifierRegistry<T> poseModifiers = new AzPoseModifierRegistry<>();
+
+    private boolean poseModifiersRegistered;
+
+    private final List<AzAnimatorUpdateHook<T>> updateHooks = new ArrayList<>(0);
+
+    /** Set while a render layer re-animates a swapped-in model; see {@link #suspendPoseModifiers}. */
+    private int poseModifiersSuspended;
 
     private final WeakHashMap<K, AzAnimationContext<T>> contextCache = new WeakHashMap<>();
 
@@ -132,6 +148,17 @@ public abstract class AzAnimator<K, T> {
         return new AzAnimationTimer(config);
     }
 
+    /**
+     * AzureLib 3.2.3 (ported Oct 31) - the context this animator keeps for {@code key}, without creating one or
+     * changing the current context. Molang's arrow operator uses it to read another animatable's {@code variable.*}
+     * values.
+     *
+     * @return the context, or {@code null} if this animator has never animated {@code key}
+     */
+    public @Nullable AzAnimationContext<T> findContext(K key) {
+        return contextCache.get(key);
+    }
+
     public AzAnimationContext<T> getOrCreateContext(K uuid) {
         var ctx = contextCache.computeIfAbsent(
             uuid,
@@ -158,41 +185,76 @@ public abstract class AzAnimator<K, T> {
 
     public void animate(T animatable, float partialTicks, boolean updateTimer) {
         AzProfiler.begin(AzProfileStage.ANIMATE, animatable);
-        this.currentContext.setAnimatable(animatable);
 
-        var boneCache = this.currentContext.boneCache();
-        var timer = this.currentContext.timer();
+        // AzureLib 3.2.2 (ported Oct 31) - Molang variable.* reads and writes go to this animatable's own scope while
+        // it
+        // animates, so two entities playing the same clip never share a v.* value.
+        var previousScope = MolangScope.setCurrent(this.currentContext.molangScope());
 
-        if (updateTimer) {
-            timer.tick();
-        }
+        // ⚠ Kept INSIDE animate (not split into a helper): avp_human's cryo pose mixin redirects the
+        // setCustomAnimations call by its location in this method.
+        try {
+            this.currentContext.setAnimatable(animatable);
 
-        if (!hasAnimated) {
-            hasAnimated = true;
-            onFirstAnimate(animatable);
-        }
+            var boneCache = this.currentContext.boneCache();
+            var timer = this.currentContext.timer();
 
-        AzProfiler.begin(AzProfileStage.MOLANG_SETUP, animatable);
-        preAnimationSetup(animatable, timer.getAnimTime(), partialTicks);
-        AzProfiler.end(AzProfileStage.MOLANG_SETUP);
-
-        if (!boneCache.isEmpty()) {
-            for (var track : animationTrackContainer.getAll()) {
-                AzProfiler.begin(AzProfileStage.TRACK_UPDATE, track);
-                track.update();
-                AzProfiler.end(AzProfileStage.TRACK_UPDATE);
+            if (updateTimer) {
+                timer.tick();
             }
 
-            this.reloadAnimations = false;
+            // AzureLib 3.2.3 (ported Oct 31) - take last frame's procedural offsets back out before anything reads or
+            // animates the bones.
+            AzPoseLayer<T> poseLayer = this.currentContext.poseLayer();
+            var posing = poseModifiersSuspended == 0;
 
-            AzProfiler.begin(AzProfileStage.BONE_UPDATE, animatable);
-            boneCache.update(this.currentContext);
-            AzProfiler.end(AzProfileStage.BONE_UPDATE);
+            if (posing) {
+                poseLayer.restore();
+            }
+
+            if (!hasAnimated) {
+                hasAnimated = true;
+                onFirstAnimate(animatable);
+            }
+
+            AzProfiler.begin(AzProfileStage.MOLANG_SETUP, animatable);
+            preAnimationSetup(animatable, timer.getAnimTime(), partialTicks);
+            AzProfiler.end(AzProfileStage.MOLANG_SETUP);
+
+            if (!boneCache.isEmpty()) {
+                for (int i = 0, n = updateHooks.size(); i < n; i++) {
+                    updateHooks.get(i).beforeControllers(animatable, partialTicks);
+                }
+
+                for (var track : animationTrackContainer.getAll()) {
+                    AzProfiler.begin(AzProfileStage.TRACK_UPDATE, track);
+                    track.update();
+                    AzProfiler.end(AzProfileStage.TRACK_UPDATE);
+                }
+
+                this.reloadAnimations = false;
+
+                AzProfiler.begin(AzProfileStage.BONE_UPDATE, animatable);
+                boneCache.update(this.currentContext);
+                AzProfiler.end(AzProfileStage.BONE_UPDATE);
+            }
+
+            AzProfiler.begin(AzProfileStage.CUSTOM_ANIMATIONS, animatable);
+            setCustomAnimations(animatable, partialTicks);
+            AzProfiler.end(AzProfileStage.CUSTOM_ANIMATIONS);
+
+            AzPoseModifierRegistry<T> modifiers = getPoseModifiers();
+
+            if (posing && !boneCache.isEmpty() && !modifiers.isEmpty()) {
+                AzProfiler.begin(AzProfileStage.POSE_MODIFIERS, animatable);
+                poseLayer.apply(modifiers, animatable, partialTicks);
+                AzProfiler.end(AzProfileStage.POSE_MODIFIERS);
+            }
+        } finally {
+            MolangScope.setCurrent(previousScope);
+            // Oct 31 - the shared query context must not keep this animatable (and its level) alive after the pass.
+            com.blib.internal.client.animation.molang.AzMolangQueryContext.INSTANCE.release();
         }
-
-        AzProfiler.begin(AzProfileStage.CUSTOM_ANIMATIONS, animatable);
-        setCustomAnimations(animatable, partialTicks);
-        AzProfiler.end(AzProfileStage.CUSTOM_ANIMATIONS);
 
         AzProfiler.end(AzProfileStage.ANIMATE);
     }
@@ -250,6 +312,99 @@ public abstract class AzAnimator<K, T> {
      */
     @SuppressWarnings("unused")
     public void setCustomAnimations(T animatable, float partialTicks) {}
+
+    /**
+     * AzureLib 3.2.3 (ported Oct 31) - registers this animator's procedural pose modifiers. Called once, before the
+     * first {@link #animate}. Modifiers run every frame after the tracks, the bone reset pass and
+     * {@link #setCustomAnimations}, in priority order, and their writes are undone before the next frame's tracks run.
+     *
+     * <pre>{@code
+     *
+     * protected void registerPoseModifiers(AzPoseModifierRegistry<MyEntity> modifiers) {
+     *     modifiers.add("look", AzPoseModifiers.headLook("neck", "head"));
+     *     modifiers.add("tail", AzPoseModifiers.spring("tail")).priority(100);
+     * }
+     * }</pre>
+     *
+     * @param modifiers the registry to add to
+     * @see AzPoseModifiers
+     * @see AzAnimationContext#poseLayer()
+     */
+    protected void registerPoseModifiers(AzPoseModifierRegistry<T> modifiers) {}
+
+    /**
+     * Oct 31 - turns the pose modifier pass off for the length of {@code pass}. A render layer that swaps a different
+     * model into the bone cache and animates it again ({@code AzRenderLayer#reRenderWithBakedModel}) must not run the
+     * modifiers on that model: the pose layer would re-bind to it, drop every modifier's state (spring tails would
+     * reset each frame) and stop restoring the main model's bones. The swapped-in model gets the tracks' pose only.
+     *
+     * @param pass the work to run with pose modifiers off
+     */
+    public void suspendPoseModifiers(Runnable pass) {
+        poseModifiersSuspended++;
+
+        try {
+            pass.run();
+        } finally {
+            poseModifiersSuspended--;
+        }
+    }
+
+    /**
+     * AzureLib 3.2.3 (ported Oct 31) - runs {@code action} for every animator linked to the current animatable (see
+     * {@link AzAnimationContext#linkedAnimators()}). Animation commands use it to reach animated overlay layers.
+     *
+     * @param action what to do with each linked animator
+     */
+    public void forEachLinkedAnimator(java.util.function.Consumer<AzAnimator<?, T>> action) {
+        var context = this.currentContext;
+
+        if (context == null) {
+            return;
+        }
+
+        var linked = context.linkedAnimators();
+
+        for (int i = 0, n = linked.size(); i < n; i++) {
+            action.accept(linked.get(i));
+        }
+    }
+
+    /**
+     * Adds a hook that runs every frame just before the tracks update, e.g. to set track weights from per-frame values.
+     * Blend spaces register themselves here. Hooks run in the order they were added.
+     *
+     * @param hook the hook to add; adding the same hook twice does nothing
+     */
+    public void addUpdateHook(AzAnimatorUpdateHook<T> hook) {
+        if (!updateHooks.contains(hook)) {
+            updateHooks.add(hook);
+        }
+    }
+
+    /**
+     * Removes a hook added with {@link #addUpdateHook}.
+     *
+     * @param hook the hook to remove
+     */
+    public void removeUpdateHook(AzAnimatorUpdateHook<T> hook) {
+        updateHooks.remove(hook);
+    }
+
+    /**
+     * This animator's pose modifiers. Addons and compat code may add or remove modifiers here at any time; changes
+     * apply from the next frame.
+     *
+     * @return the pose modifier registry
+     */
+    public AzPoseModifierRegistry<T> getPoseModifiers() {
+        if (!poseModifiersRegistered) {
+            poseModifiersRegistered = true;
+            registerPoseModifiers(poseModifiers);
+        }
+
+        return poseModifiers;
+    }
 
     /**
      * Get the baked animation object used for rendering from the given resource path

@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
+import com.blib.internal.client.animation.molang.functions.AzMolangFunctions;
 import com.blib.internal.client.animation.primitive.AzBakedAnimations;
 import com.blib.internal.client.model.AzResourceCache;
 import com.blib.internal.common.io.ResourceFileLoader;
@@ -45,6 +46,9 @@ public class AzBakedAnimationCache extends AzResourceCache {
         Executor backgroundExecutor,
         ResourceManager resourceManager
     ) {
+        // AzureLib 3.2.3 (ported Oct 31) - the Minecraft-aware query functions (q.get_nearby_entities, q.count, ...)
+        // must be registered before any animation file is parsed.
+        AzMolangFunctions.register();
         MolangParser.clearExpressionCache();
 
         return loadResources(

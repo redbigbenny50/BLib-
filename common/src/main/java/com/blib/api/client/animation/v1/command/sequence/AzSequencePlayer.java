@@ -4,6 +4,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -40,6 +41,21 @@ public final class AzSequencePlayer<T> {
     private int nextEventIndex;
 
     private int generation;
+
+    /** AzureLib 3.2.2 (ported Oct 31) - places stage-anchored events; see {@link #withTiming}. */
+    private AzSequenceTiming timing = AzSequenceTiming.DEFAULT;
+
+    /** The current sequence's events with their due ticks, in firing order. */
+    private List<AzSequenceTimeline.ScheduledEvent> schedule = List.of();
+
+    private @Nullable AzSequence cachedSequence;
+
+    private @Nullable AzSequenceTiming cachedTiming;
+
+    private @Nullable AzSequenceTimeline cachedTimeline;
+
+    /** Sequences already warned about, so a skipped event is logged once, not every play. */
+    private static final java.util.Set<String> WARNED = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private AzSequencePlayer(String trackName, Consumer<AzCommand<T>> dispatcher, AzSequenceEventListener listener) {
         this.trackName = Objects.requireNonNull(trackName, "trackName");
@@ -115,11 +131,62 @@ public final class AzSequencePlayer<T> {
         dispatcher.accept(AzCommand.<T>builder().cancel(target).playSequence(target, sequence).build());
 
         this.current = sequence;
+        this.schedule = sequence.hasEvents() ? timelineFor(sequence).events() : List.of();
         this.elapsedTicks = 0;
         this.nextEventIndex = 0;
         this.generation++;
 
         fireDueEvents();
+    }
+
+    /**
+     * AzureLib 3.2.2 (ported Oct 31) - the timing used to place stage-anchored events ({@code eventAt},
+     * {@code eventOnStart}, {@code eventOnEnd}): animation lengths and the track's speed, transition and so on. On the
+     * server, give it the lengths: {@code AzSequenceTiming.builder().length("windup", 20).build()}. On the client,
+     * {@code track.sequenceTiming()} reads them from the animation file. Plain tick events need no timing. Takes effect
+     * from the next {@link #play}.
+     *
+     * @param timing the timing
+     * @return this player
+     */
+    public AzSequencePlayer<T> withTiming(AzSequenceTiming timing) {
+        this.timing = Objects.requireNonNull(timing, "timing");
+        return this;
+    }
+
+    /** @return the timing used to place stage-anchored events */
+    public AzSequenceTiming timing() {
+        return timing;
+    }
+
+    /** @return when each stage and event of the current sequence happens, or {@code null} when nothing is playing */
+    public @Nullable AzSequenceTimeline timeline() {
+        return current == null ? null : timelineFor(current);
+    }
+
+    private AzSequenceTimeline timelineFor(AzSequence sequence) {
+        if (cachedTimeline != null && cachedSequence == sequence && cachedTiming == timing) {
+            return cachedTimeline;
+        }
+
+        var timeline = AzSequenceTimeline.compute(sequence, timing);
+
+        if (!timeline.skipped().isEmpty() && WARNED.add(sequence.toString())) {
+            for (var skipped : timeline.skipped()) {
+                com.blib.mod.BLib.LOGGER.warn(
+                    "Sequence event '{}' in {} on track '{}' will not fire: {}",
+                    skipped.event().name(),
+                    sequence,
+                    trackName,
+                    skipped.reason()
+                );
+            }
+        }
+
+        this.cachedSequence = sequence;
+        this.cachedTiming = timing;
+        this.cachedTimeline = timeline;
+        return timeline;
     }
 
     /** Cancels the track and forgets the sequence; no further events fire. */
@@ -135,6 +202,7 @@ public final class AzSequencePlayer<T> {
     /** Forgets the sequence without sending anything; no further events fire. */
     public void clear() {
         this.current = null;
+        this.schedule = List.of();
         this.elapsedTicks = 0;
         this.nextEventIndex = 0;
         this.generation++;
@@ -157,18 +225,19 @@ public final class AzSequencePlayer<T> {
             return;
         }
 
-        var events = sequence.events();
+        var events = schedule;
         var startGeneration = generation;
 
         while (generation == startGeneration && nextEventIndex < events.size()) {
-            var event = events.get(nextEventIndex);
+            var scheduled = events.get(nextEventIndex);
 
-            if (event.tick() > elapsedTicks) {
+            // Fractional due ticks fire on the first whole tick at or after them, never early.
+            if (scheduled.tick() > elapsedTicks + 1.0E-6) {
                 break;
             }
 
             nextEventIndex++;
-            listener.onEvent(sequence, event);
+            listener.onEvent(sequence, scheduled.event());
         }
     }
 
@@ -187,7 +256,7 @@ public final class AzSequencePlayer<T> {
 
     /** @return whether events are still to fire */
     public boolean hasPendingEvents() {
-        return current != null && nextEventIndex < current.events().size();
+        return current != null && nextEventIndex < schedule.size();
     }
 
     /** @return ticks since the sequence started */

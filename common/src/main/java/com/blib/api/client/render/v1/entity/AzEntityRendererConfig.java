@@ -286,7 +286,7 @@ public class AzEntityRendererConfig<T extends Entity> extends AzRendererConfig<U
         public AzEntityRendererConfig<T> build() {
             var baseConfig = super.build();
 
-            return new AzEntityRendererConfig<>(
+            AzEntityRendererConfig<T> config = new AzEntityRendererConfig<>(
                 baseConfig::createAnimator,
                 deathMaxRotationProvider,
                 shadowRadius,
@@ -307,6 +307,9 @@ public class AzEntityRendererConfig<T extends Entity> extends AzRendererConfig<U
                 baseConfig.boneVisibilityFilter(),
                 lodConfig
             );
+            // AzureLib 3.2.3 - carry base-only options such as translucency sorting over.
+            config.copyBaseOptions(baseConfig);
+            return config;
         }
     }
 }

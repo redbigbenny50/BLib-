@@ -26,5 +26,7 @@ public enum AzProfileStage {
     /** The animator's {@code setCustomAnimations} hook. Subject: the animatable. */
     CUSTOM_ANIMATIONS,
     /** Entity LOD evaluation. Subject: the entity. */
-    LOD_UPDATE
+    LOD_UPDATE,
+    /** AzureLib 3.2.3 (ported Oct 31) - the procedural pose modifier pass. Subject: the animatable. */
+    POSE_MODIFIERS
 }

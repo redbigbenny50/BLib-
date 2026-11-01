@@ -5,9 +5,11 @@ import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.joml.Vector4f;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import com.blib.internal.client.model.AzBoneMetadata;
@@ -29,6 +31,11 @@ public class AzBone {
     private final Matrix4f worldSpaceMatrix = new Matrix4f();
 
     private AzBoneSnapshot initialSnapshot;
+
+    /** Matches {@code GeoHitboxProfile.HITBOX_GROUP_PREFIX}; repeated here so client code needs no common import. */
+    private static final String HITBOX_GROUP_PREFIX = "hitbox_";
+
+    private Boolean hitboxBone;
 
     private boolean hidden;
 
@@ -53,6 +60,9 @@ public class AzBone {
     private Matrix3f worldSpaceNormal = new Matrix3f();
 
     private boolean trackingMatrices;
+
+    /** AzureLib 3.2.3 (ported Oct 31) - Blockbench locators baked onto this bone, by name. */
+    private Map<String, AzBoneLocator> locators = Map.of();
 
     public AzBone(AzBoneMetadata metadata) {
         this.metadata = metadata;
@@ -172,6 +182,20 @@ public class AzBone {
         return this.hidden;
     }
 
+    /**
+     * True for a Blockbench {@code hitbox_} group and everything inside it. These cubes only shape limb hitboxes on the
+     * server; the renderer never draws them, whatever their hidden flag says. Worked out once and cached.
+     */
+    public boolean isHitboxBone() {
+        var cached = this.hitboxBone;
+        if (cached == null) {
+            var parent = getParent();
+            cached = getName().startsWith(HITBOX_GROUP_PREFIX) || (parent != null && parent.isHitboxBone());
+            this.hitboxBone = cached;
+        }
+        return cached;
+    }
+
     public void setHidden(boolean hidden) {
         this.hidden = hidden;
 
@@ -282,6 +306,15 @@ public class AzBone {
 
     public List<GeoCube> getCubes() {
         return this.cubes;
+    }
+
+    /** AzureLib 3.2.3 - each Blockbench locator's offset from this bone's pivot, and its rotation. */
+    public Map<String, AzBoneLocator> getLocators() {
+        return this.locators;
+    }
+
+    public void setLocators(Map<String, AzBoneLocator> locators) {
+        this.locators = locators == null ? Map.of() : Map.copyOf(locators);
     }
 
     public boolean isTrackingMatrices() {
@@ -411,6 +444,16 @@ public class AzBone {
         setPivotZ(pivotZ);
     }
 
+    /**
+     * AzureLib 3.2.3 (ported Oct 31) - sets the transform WITHOUT marking any channel as changed. Pose modifiers use it
+     * to undo their own writes, so the next frame's controllers see the bone exactly as they left it.
+     */
+    public void setTransformUnmarked(Vector3fc position, Vector3fc rotation, Vector3fc scale) {
+        this.position.set(position);
+        this.rotation.set(rotation);
+        this.scale.set(scale);
+    }
+
     public AzBone deepCopy() {
         AzBone copy = new AzBone(this.metadata);
 
@@ -418,6 +461,11 @@ public class AzBone {
         copy.hidden = this.hidden;
         copy.lodHidden = this.lodHidden;
         copy.childrenHidden = this.childrenHidden;
+
+        // AzureLib 3.2.3 - keep matrix tracking requested by hitboxes and bone attachments when the model is re-copied
+        // (model swaps), and the baked locators.
+        copy.trackingMatrices = this.trackingMatrices;
+        copy.locators = this.locators;
 
         // Copy transforms
         copy.pivot.set(this.pivot);

@@ -1,0 +1,36 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:arrow",
+    "minecraft:spectral_arrow",
+    "minecraft:trident",
+    {
+      "id": "avp_predator:shuriken",
+      "required": false
+    },
+    {
+      "id": "avp_predator:plasma_shuriken",
+      "required": false
+    },
+    {
+      "id": "avp_predator:smart_disc",
+      "required": false
+    },
+    {
+      "id": "avp_predator:combi_stick",
+      "required": false
+    },
+    {
+      "id": "avp_predator:veritanium_arrow",
+      "required": false
+    },
+    {
+      "id": "avp_predator:veritanium_dart",
+      "required": false
+    },
+    {
+      "id": "avp_predator:plasma_bolt_arrow",
+      "required": false
+    }
+  ]
+}
